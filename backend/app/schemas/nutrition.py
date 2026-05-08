@@ -8,13 +8,13 @@ class NutritionLogBase(BaseModel):
     carbs: float = 0
     fat: float = 0
     food_name: str
-    meal_type: str = "snack" # breakfast, lunch, dinner, snack
+    meal_type: str = "snack"
 
 class NutritionLogCreate(NutritionLogBase):
     pass
 
 class DailyNutritionStats(BaseModel):
-    date: str # YYYY-MM-DD
+    date: str
     total_calories: int = 0
     total_protein: float = 0
     total_carbs: float = 0

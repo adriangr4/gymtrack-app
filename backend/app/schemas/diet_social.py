@@ -3,15 +3,15 @@ from typing import Optional, List, Any
 from datetime import datetime
 
 class PostBase(BaseModel):
-    content_type: str # 'routine' or 'diet'
+    content_type: str
     content_id: str
     content_name: str
-    content_image: Optional[str] = None # Diet image or routine placeholder
-    
+    content_image: Optional[str] = None
+
     creator_id: str
     creator_name: str
     creator_avatar: Optional[str] = None
-    
+
     likes: List[str] = []
     rating_sum: float = 0.0
     rating_count: int = 0
@@ -23,13 +23,12 @@ class PostCreate(PostBase):
 class Post(PostBase):
     id: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
-# --- SOCIAL (RATINGS) ---
 class RatingBase(BaseModel):
-    content_type: str # 'routine' or 'diet'
+    content_type: str
     content_id: str
     score: int = Field(..., ge=1, le=5)
 
@@ -40,11 +39,10 @@ class Rating(RatingBase):
     id: str
     rater_id: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
-# --- COMMENTS ---
 class CommentCreate(BaseModel):
     text: str
 

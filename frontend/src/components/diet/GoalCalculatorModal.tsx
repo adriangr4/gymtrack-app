@@ -15,10 +15,9 @@ export function GoalCalculatorModal({ isOpen, onClose, onApply, initialData }: G
     const [height, setHeight] = useState(initialData?.height || 170);
     const [age, setAge] = useState(25);
     const [gender, setGender] = useState<'male' | 'female'>('male');
-    const [activity, setActivity] = useState(1.375); // Light activity default
+    const [activity, setActivity] = useState(1.375);
     const [goal, setGoal] = useState<'lose' | 'maintain' | 'gain'>('maintain');
 
-    // Reset step when opening
     useEffect(() => {
         if (isOpen) setStep(1);
     }, [isOpen]);
@@ -26,7 +25,7 @@ export function GoalCalculatorModal({ isOpen, onClose, onApply, initialData }: G
     if (!isOpen) return null;
 
     const calculateCalories = () => {
-        // Harris-Benedict Equation
+
         let bmr = 10 * weight + 6.25 * height - 5 * age;
         bmr += gender === 'male' ? 5 : -161;
 
@@ -42,7 +41,7 @@ export function GoalCalculatorModal({ isOpen, onClose, onApply, initialData }: G
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className="bg-card border border-border w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                {/* Header */}
+                {}
                 <div className="flex items-center justify-between p-4 border-b border-border/50">
                     <h2 className="font-bold flex items-center gap-2">
                         <Calculator className="size-5 text-primary" /> Calculadora Inteligente
@@ -52,7 +51,7 @@ export function GoalCalculatorModal({ isOpen, onClose, onApply, initialData }: G
                     </button>
                 </div>
 
-                {/* Body */}
+                {}
                 <div className="p-6">
                     {step === 1 && (
                         <div className="space-y-4 animate-in slide-in-from-right-8 fade-in duration-300">

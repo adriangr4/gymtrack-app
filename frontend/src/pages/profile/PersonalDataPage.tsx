@@ -56,12 +56,10 @@ export function PersonalDataPage() {
                 await api.put('/users/me', { height: parseInt(height) });
             }
 
-            // Refresh data
             const historyRes = await api.get('/users/me/weight-history');
             setWeightHistory(historyRes.data);
             calculateBMI(parseFloat(currentWeight), parseInt(height));
 
-            // Optional: Show success feedback?
         } catch (error) {
             console.error("Error saving data", error);
         }

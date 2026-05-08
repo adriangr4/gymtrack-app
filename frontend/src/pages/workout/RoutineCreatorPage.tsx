@@ -27,7 +27,6 @@ export function RoutineCreatorPage() {
         { id: 'Sunday', label: 'Domingo', short: 'D' },
     ];
 
-    // Initialize schedule with empty arrays for each day
     const [weeklyPlan, setWeeklyPlan] = useState<DailyRoutine[]>(
         days.map(d => ({ day: d.id, exercises: [] }))
     );
@@ -38,8 +37,8 @@ export function RoutineCreatorPage() {
         const newExercise: RoutineExercise = {
             exercise_id: exercise.id,
             name: exercise.name,
-            series: 3, // Default
-            reps: '10-12' // Default
+            series: 3,
+            reps: '10-12'
         };
 
         setWeeklyPlan(prev => prev.map(day => {
@@ -84,7 +83,7 @@ export function RoutineCreatorPage() {
                 is_public: false
             };
             const created = await createRoutine(routineData);
-            // Offer to share the newly created routine
+
             if (created?.id) {
                 setShareModal({ isOpen: true, routineId: created.id, routineName: name });
             } else {
@@ -116,7 +115,7 @@ export function RoutineCreatorPage() {
                 onSelect={handleAddExercise}
             />
 
-            {/* Header */}
+            {}
             <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50 p-4">
                 <div className="flex items-center gap-4">
                     <button onClick={() => navigate(-1)} className="p-2 hover:bg-muted rounded-full transition-colors">
@@ -131,7 +130,7 @@ export function RoutineCreatorPage() {
                             className="w-full bg-transparent text-xl font-black placeholder:text-muted-foreground/50 border-none outline-none"
                         />
                     </div>
-                    {/* Desktop Save Button */}
+                    {}
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
@@ -145,7 +144,7 @@ export function RoutineCreatorPage() {
 
             <main className="p-4 max-w-3xl mx-auto space-y-6">
 
-                {/* Day Selector */}
+                {}
                 <div className="flex justify-between bg-card/50 p-1.5 rounded-2xl backdrop-blur-sm border border-border/50 overflow-x-auto">
                     {days.map(day => (
                         <button
@@ -168,7 +167,7 @@ export function RoutineCreatorPage() {
                     ))}
                 </div>
 
-                {/* Day Header & Add Button */}
+                {}
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-bold flex items-center gap-2">
                         <Calendar className="size-6 text-primary" />
@@ -183,7 +182,7 @@ export function RoutineCreatorPage() {
                     </button>
                 </div>
 
-                {/* Exercises List */}
+                {}
                 <div className="space-y-3">
                     <AnimatePresence mode="popLayout">
                         {currentDayExercises.length === 0 ? (
@@ -278,7 +277,7 @@ export function RoutineCreatorPage() {
                 </div>
             </main>
 
-            {/* Mobile Save Button */}
+            {}
             <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background to-transparent md:hidden">
                 <button
                     onClick={handleSave}

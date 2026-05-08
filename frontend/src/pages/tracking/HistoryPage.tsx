@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getScheduledWorkouts } from '../../services/tracking';
@@ -15,9 +14,9 @@ export function HistoryPage() {
         if (user?.id) {
             getScheduledWorkouts(user.id)
                 .then(data => {
-                    // Filter only completed workouts
+
                     const completed = data.filter((w: any) => w.status === 'completed');
-                    // Sort by date desc
+
                     completed.sort((a: any, b: any) => new Date(b.completed_at || b.scheduled_date).getTime() - new Date(a.completed_at || a.scheduled_date).getTime());
                     setWorkouts(completed);
                 })
@@ -26,13 +25,9 @@ export function HistoryPage() {
         }
     }, [user?.id]);
 
-    // Group workouts by Month/Year or just simple list for now as "Calendar" might be complex to implemented fully in one go.
-    // User asked "choose by days", so maybe a list with clear date headers or a calendar view.
-    // Let's do a fast list first.
-
     return (
         <div className="min-h-screen bg-background pb-20">
-            {/* Header */}
+            {}
             <div className="p-4 flex items-center gap-4 sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
                 <button onClick={() => navigate('/profile')} className="p-2 hover:bg-muted rounded-full">
                     <ChevronLeft className="size-6" />
@@ -44,7 +39,7 @@ export function HistoryPage() {
             </div>
 
             <div className="p-4 space-y-6">
-                {/* Stats Summary Card ?? */}
+                {}
                 <div className="bg-card border border-border p-4 rounded-xl flex justify-between items-center shadow-sm">
                     <div>
                         <p className="text-xs text-muted-foreground uppercase font-bold">Total Workouts</p>

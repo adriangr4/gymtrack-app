@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getScheduledWorkouts, getWorkoutById } from '../../services/tracking';
@@ -28,7 +27,7 @@ export function WorkoutDetailsPage() {
 
     return (
         <div className="min-h-screen bg-background pb-10">
-            {/* Header */}
+            {}
             <div className="p-4 flex items-center gap-4 sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
                 <button onClick={() => navigate(-1)} className="p-2 hover:bg-muted rounded-full">
                     <ChevronLeft className="size-6" />
@@ -101,7 +100,7 @@ export function WorkoutDetailsPage() {
                 {workout.notes && (
                     <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl">
                         <p className="text-xs font-bold text-yellow-500 uppercase mb-1">Notas</p>
-                        <p className="text-sm italic text-yellow-200/80">"{workout.notes}"</p>
+                        <p className="text-sm italic text-foreground/80">"{workout.notes}"</p>
                     </div>
                 )}
             </div>

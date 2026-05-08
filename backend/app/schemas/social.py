@@ -4,7 +4,7 @@ from datetime import datetime
 
 class ContentRatingBase(BaseModel):
     rater_id: str
-    content_type: str # 'routine' or 'diet'
+    content_type: str
     content_id: str
     score: int
 

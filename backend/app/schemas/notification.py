@@ -7,7 +7,7 @@ class NotificationBase(BaseModel):
     actor_id: str
     actor_name: str
     actor_avatar: Optional[str] = None
-    type: str # 'like', 'comment', 'follow', 'import', 'post'
+    type: str
     content_id: Optional[str] = None
     message: Optional[str] = None
 

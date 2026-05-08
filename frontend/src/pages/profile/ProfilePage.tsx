@@ -2,370 +2,299 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { LogOut, User as UserIcon, Settings, Trophy, Activity, ChevronRight, Edit2, Camera, PenLine, History, LayoutDashboard, Moon, Sun } from 'lucide-react';
-import { LevelProgressBar } from '../../components/profile/LevelProgressBar';
+import { LogOut, Moon, Sun, Edit2, Camera, ChevronRight, Dumbbell, Clock, Flame, Zap, Trophy, Users, Scale, TrendingUp } from 'lucide-react';
 import { WorkoutHistoryList } from '../../components/profile/WorkoutHistoryList';
+import { RanksModal } from '../../components/profile/RanksModal';
 import { getScheduledWorkouts, getScheduledWorkoutsCache } from '../../services/tracking';
 import { getRoutines } from '../../services/routines';
 import { getExercises } from '../../services/exercises';
-import { getDashboardStats, getDashboardStatsCache } from '../../services/user'; // Add cache import
-import { motion, AnimatePresence } from 'framer-motion';
+import { getDashboardStats, getDashboardStatsCache } from '../../services/user';
+
+function Bar({ pct = 0.5, h = 6 }: { pct?: number; h?: number }) {
+    return (
+        <div style={{ height: h, borderRadius: h, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', width: '100%' }}>
+            <div style={{ height: '100%', width: `${Math.min(pct, 1) * 100}%`, background: 'var(--accent)', borderRadius: h, transition: 'width 0.6s ease' }} />
+        </div>
+    );
+}
+
+function LevelRing({ size = 64, pct = 0.62, sw = 5 }: { size?: number; pct?: number; sw?: number }) {
+    const r = (size - sw) / 2, c = 2 * Math.PI * r;
+    return (
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+            <circle cx={size/2} cy={size/2} r={r} stroke="rgba(255,255,255,0.10)" strokeWidth={sw} fill="none"/>
+            <circle cx={size/2} cy={size/2} r={r} stroke="var(--accent)" strokeWidth={sw} fill="none"
+                strokeDasharray={`${c * pct} ${c}`} strokeLinecap="round"/>
+        </svg>
+    );
+}
 
 export function ProfilePage() {
     const { user, logout, updateUser } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
-    // Initialize with CACHE
-    const [dashboardStats, setDashboardStats] = useState<any>(getDashboardStatsCache());
-    const [isEditingProfile, setIsEditingProfile] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const settingsRef = useRef<HTMLDivElement>(null);
-    const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview');
 
-    // History Data
-    const [workouts, setWorkouts] = useState<any[]>(() => {
-        const cached = getScheduledWorkoutsCache();
-        return cached || [];
-    });
+    const [stats, setStats] = useState<any>(getDashboardStatsCache());
+    const [showRanks, setShowRanks] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [activeTab, setActiveTab] = useState<'summary' | 'history'>('summary');
+    const [workouts, setWorkouts] = useState<any[]>(() => getScheduledWorkoutsCache() || []);
     const [routinesMap, setRoutinesMap] = useState<Record<string, any>>({});
     const [exercisesMap, setExercisesMap] = useState<Record<string, any>>({});
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-
-    // Edit Form States
-    const [editUsername, setEditUsername] = useState(user?.username || '');
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                // Fetch fresh data
-                const stats = await getDashboardStats();
-                setDashboardStats(stats);
-            } catch (error) {
-                console.error("Error fetching profile stats", error);
-            }
-        };
-        fetchStats();
+        getDashboardStats().then(setStats).catch(() => {});
     }, []);
 
-    // Fetch History Data
     useEffect(() => {
-        if (activeTab === 'history') {
-            const loadHistory = async () => {
-                setIsLoadingHistory(true);
-                try {
-                    // Parallel fetch
-                    const [workoutsData, routinesData, exercisesData] = await Promise.all([
-                        getScheduledWorkouts(),
-                        getRoutines(),
-                        getExercises()
-                    ]);
-
-                    setWorkouts(workoutsData);
-
-                    // Create Maps for fast lookup
-                    const rMap: Record<string, any> = {};
-                    routinesData.forEach(r => rMap[r.id || ''] = r);
-                    setRoutinesMap(rMap);
-
-                    const eMap: Record<string, any> = {};
-                    exercisesData.forEach(e => eMap[e.id || ''] = e);
-                    setExercisesMap(eMap);
-
-                } catch (error) {
-                    console.error("Error loading history", error);
-                } finally {
-                    setIsLoadingHistory(false);
-                }
-            };
-            loadHistory();
-        }
+        if (activeTab !== 'history') return;
+        setLoadingHistory(true);
+        Promise.all([getScheduledWorkouts(user?.id), getRoutines(), getExercises()])
+            .then(([w, r, e]) => {
+                setWorkouts(w);
+                const rMap: Record<string, any> = {};
+                r.forEach(x => rMap[x.id || ''] = x);
+                setRoutinesMap(rMap);
+                const eMap: Record<string, any> = {};
+                e.forEach((x: any) => eMap[x.id || ''] = x);
+                setExercisesMap(eMap);
+            })
+            .catch(() => {})
+            .finally(() => setLoadingHistory(false));
     }, [activeTab]);
 
-    // Close settings when clicking outside
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-                setIsSettingsOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-
-    const toggleEditMode = () => {
-        if (isEditingProfile) {
-            // Saving changes
-            if (editUsername !== user?.username) {
-                updateUser({ username: editUsername });
-            }
-        } else {
-            setEditUsername(user?.username || '');
-        }
-        setIsEditingProfile(!isEditingProfile);
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                updateUser({ profilePicture: reader.result as string });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
+    const level = stats?.level ?? (user as any)?.level ?? 1;
+    const xp = stats?.xp ?? (user as any)?.xp ?? 0;
+    const xpForNextLevel = level ** 2 * 100;
+    const xpThisLevel = (level - 1) ** 2 * 100;
+    const xpPct = xpForNextLevel > xpThisLevel ? Math.min((xp - xpThisLevel) / (xpForNextLevel - xpThisLevel), 1) : 1;
+    const rank = stats?.rank ?? 'Bronze';
+    const workoutCount = stats?.total_workouts ?? 0;
+    const totalMinutes = stats?.total_time_minutes ?? 0;
+    const totalTimeLabel = `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
+    const kcalBurned = stats?.total_calories_burned ?? 0;
+    const streak = stats?.streak_days ?? 0;
+    const globalPosition = stats?.global_position ?? 0;
+    const totalUsers = stats?.total_users ?? 0;
+    const globalLabel = globalPosition > 0
+        ? (globalPosition <= 100 ? `#${globalPosition} globally` : `Top ${Math.round((globalPosition / totalUsers) * 100)}% globally`)
+        : null;
+    const initials = (user?.username ?? 'U').slice(0, 2).toUpperCase();
 
     return (
-        <div className="w-full bg-transparent text-foreground">
-            {/* Header */}
-            <div className="p-6 pt-12 flex items-center justify-between relative">
-                <h1 className="text-3xl font-black italic tracking-tighter">
-                    MI <span className="text-primary">PERFIL</span>
-                </h1>
+        <div style={{ background: 'var(--bg)', paddingBottom: 90 }}>
 
-                {/* Settings Dropdown */}
-                <div className="relative" ref={settingsRef}>
-                    <button
-                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                        className="p-2 bg-card rounded-full hover:bg-muted transition-colors relative z-20"
-                    >
-                        <Settings className={`size-6 text-muted-foreground transition-transform duration-300 ${isSettingsOpen ? 'rotate-90 text-primary' : ''}`} />
+            {/* Header banner */}
+            <div style={{ position: 'relative', height: 140, marginBottom: -50 }}>
+                <div className="mesh-hero" style={{
+                    position: 'absolute', inset: 0,
+                    '--mesh-a': 'oklch(0.72 0.18 340)', '--mesh-b': 'oklch(0.78 0.20 128)',
+                } as React.CSSProperties}/>
+                <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 8, zIndex: 5 }} ref={settingsRef}>
+                    <button onClick={toggleTheme} style={{
+                        width: 34, height: 34, borderRadius: 11,
+                        background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)',
+                        color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer',
+                        backdropFilter: 'blur(8px)',
+                    }}>
+                        {theme === 'dark' ? <Sun size={15}/> : <Moon size={15}/>}
                     </button>
-
-                    <AnimatePresence>
-                        {isSettingsOpen && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                className="absolute right-0 top-12 w-48 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden"
-                            >
-                                <button
-                                    onClick={() => {
-                                        toggleTheme();
-                                        setIsSettingsOpen(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-foreground hover:bg-muted/50 transition-colors border-b border-border"
-                                >
-                                    {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                                    <span className="font-medium text-sm">
-                                        {theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
-                                    </span>
-                                </button>
-                                
-                                <button
-                                    onClick={handleLogout}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-500/10 transition-colors"
-                                >
-                                    <LogOut className="size-4" />
-                                    <span className="font-medium text-sm">Cerrar Sesión</span>
-                                </button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    <button onClick={() => { logout(); navigate('/login'); }} aria-label="logout" style={{
+                        width: 34, height: 34, borderRadius: 11,
+                        background: 'rgba(239,68,68,0.25)', border: '1px solid rgba(239,68,68,0.35)',
+                        color: '#fca5a5', display: 'grid', placeItems: 'center', cursor: 'pointer',
+                        backdropFilter: 'blur(8px)',
+                    }}>
+                        <LogOut size={15}/>
+                    </button>
                 </div>
             </div>
 
-            {/* Profile Card */}
-            <div className="px-6 mb-8">
-                <div className="bg-card border border-border rounded-3xl p-6 relative overflow-visible">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -z-10" />
-
-                    <div className="flex items-center gap-4 mb-6">
-                        <div className="relative">
-                            <div className={`size-20 rounded-full bg-muted flex items-center justify-center border-2 border-primary shadow-[0_0_15px_rgba(19,91,236,0.3)] overflow-hidden ${isEditingProfile ? 'ring-4 ring-primary/20' : ''}`}>
-                                <img src={user?.profilePicture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || 'Adrian'}`} alt="Profile" className="w-full h-full object-cover" />
-                            </div>
-
-                            {/* Camera Icon - Only visible in Edit Mode */}
-                            {isEditingProfile && (
-                                <div className="absolute -bottom-1 -right-1 bg-primary text-white p-2 rounded-full cursor-pointer hover:bg-blue-600 transition-colors shadow-lg z-10">
-                                    <Camera className="size-4" />
-                                    <input
-                                        type="file"
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        accept="image/*"
-                                        onChange={handleFileChange}
-                                    />
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex-1">
-                            {isEditingProfile ? (
-                                <div className="flex items-center gap-2 border-b border-primary pb-1 mb-1">
-                                    <input
-                                        type="text"
-                                        value={editUsername}
-                                        onChange={(e) => setEditUsername(e.target.value)}
-                                        className="bg-transparent font-bold text-xl outline-none w-full"
-                                        autoFocus
-                                    />
-                                    <PenLine className="size-4 text-primary animate-pulse" />
-                                </div>
-                            ) : (
-                                <h2 className="text-xl font-bold">{user?.username || 'Usuario'}</h2>
-                            )}
-
-                            <p className="text-muted-foreground text-sm">{user?.email || 'usuario@gymtrack.com'}</p>
-
-                            {!isEditingProfile && (
-                                <div className="flex items-center gap-2 mt-1">
-                                    {dashboardStats?.rank && (
-                                        <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold">{dashboardStats.rank}</span>
-                                    )}
-                                    <span className="text-xs bg-secondary/20 text-secondary px-2 py-0.5 rounded-full font-bold">Lvl {dashboardStats?.level || 1}</span>
-                                </div>
-                            )}
-                        </div>
+            {/* Avatar + identity */}
+            <div style={{ padding: '0 20px', position: 'relative', zIndex: 2 }}>
+                <div style={{ position: 'relative', display: 'inline-block', marginBottom: 12 }}>
+                    <div style={{
+                        width: 88, height: 88, borderRadius: 24,
+                        border: '4px solid var(--bg)',
+                        overflow: 'hidden', display: 'grid', placeItems: 'center',
+                        background: user?.profilePicture
+                            ? `url("${user.profilePicture}") center/cover`
+                            : 'linear-gradient(135deg, #2a2a26, #141413)',
+                        color: 'var(--accent)', fontWeight: 700, fontSize: 36,
+                    }}>
+                        {!user?.profilePicture && initials}
                     </div>
-
-                    {/* Level Progress */}
-                    {dashboardStats && !isEditingProfile && (
-                        <div className="mb-4">
-                            <LevelProgressBar
-                                level={dashboardStats.level}
-                                progress={dashboardStats.xp_progress}
-                                rank={dashboardStats.rank}
+                    {isEditing && (
+                        <label style={{
+                            position: 'absolute', right: -4, bottom: -4,
+                            width: 28, height: 28, borderRadius: '50%',
+                            background: 'var(--accent)', color: 'var(--accent-ink)',
+                            display: 'grid', placeItems: 'center', cursor: 'pointer',
+                            border: '2px solid var(--bg)',
+                        }}>
+                            <Camera size={13}/>
+                            <input type="file" accept="image/*" style={{ display: 'none' }}
+                                onChange={e => {
+                                    const f = e.target.files?.[0];
+                                    if (f) { const r = new FileReader(); r.onloadend = () => updateUser({ profilePicture: r.result as string }); r.readAsDataURL(f); }
+                                }}
                             />
-                        </div>
-                    )}
-
-                    <button
-                        onClick={toggleEditMode}
-                        className={`w-full transition-all py-2 rounded-xl text-sm font-medium flex items-center justify-center gap-2 ${isEditingProfile ? 'bg-primary text-white shadow-lg shadow-primary/25' : 'bg-muted hover:bg-slate-800'}`}
-                    >
-                        {isEditingProfile ? (
-                            <>Guardar Cambios</>
-                        ) : (
-                            <><Edit2 className="size-4" /> Editar Perfil</>
-                        )}
-                    </button>
-
-                    {isEditingProfile && (
-                        <button
-                            onClick={() => setIsEditingProfile(false)}
-                            className="w-full mt-2 text-muted-foreground text-xs hover:text-white transition-colors"
-                        >
-                            Cancelar
-                        </button>
+                        </label>
                     )}
                 </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                    <div>
+                        <div className="display" style={{ fontSize: 20, color: 'var(--fg)' }}>{user?.username ?? 'Athlete'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--fg-mute)', marginTop: 2 }}>{user?.email ?? ''}</div>
+                    </div>
+                    <button onClick={() => setIsEditing(v => !v)} style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        background: 'var(--card)', color: 'var(--fg)', border: '1px solid var(--line-2)',
+                        padding: '8px 14px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    }}>
+                        <Edit2 size={12}/> {isEditing ? 'Save' : 'Edit'}
+                    </button>
+                </div>
+            </div>
+
+            {/* Level card — tappable → opens RanksModal */}
+            <div style={{ padding: '18px 16px 0' }}>
+                <button onClick={() => setShowRanks(true)} style={{
+                    width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                }}>
+                <div style={{
+                    padding: 16, borderRadius: 20, position: 'relative', overflow: 'hidden',
+                    background: `linear-gradient(135deg, color-mix(in oklch, var(--accent) 16%, var(--card)), var(--card) 70%)`,
+                    border: '1px solid color-mix(in oklch, var(--accent) 28%, var(--line))',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                        <div style={{ position: 'relative', width: 64, height: 64, flexShrink: 0 }}>
+                            <LevelRing size={64} pct={xpPct} sw={5} />
+                            <div style={{
+                                position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--fg)',
+                            }}>{level}</div>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <div className="eyebrow" style={{ color: 'var(--accent)' }}>RANK · {rank.toUpperCase()}</div>
+                            <div className="display" style={{ fontSize: 18, color: 'var(--fg)', marginTop: 2 }}>Level <span className="num">{level}</span></div>
+                            {globalLabel && (
+                                <div style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 2 }}>{globalLabel}</div>
+                            )}
+                        </div>
+                        <div style={{ width: 42, height: 42, borderRadius: 14, background: 'color-mix(in oklch, var(--accent) 18%, transparent)', display: 'grid', placeItems: 'center', color: 'var(--accent)' }}>
+                            <Trophy size={22}/>
+                        </div>
+                    </div>
+                    <Bar pct={xpPct} h={6} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 10, color: 'var(--fg-dim)' }} className="num">
+                        <span>{xp} / {xpForNextLevel} XP</span>
+                        <span>{xpForNextLevel - xp} to next level</span>
+                    </div>
+                </div>
+                </button>
             </div>
 
             {/* Tabs */}
-            <div className="px-6 mb-6">
-                <div className="bg-muted/50 p-1 rounded-xl flex gap-1">
-                    <button
-                        onClick={() => setActiveTab('overview')}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'overview'
-                            ? 'bg-card shadow-sm text-white'
-                            : 'text-muted-foreground hover:text-white'
-                            }`}
-                    >
-                        <LayoutDashboard className="size-4" /> Resumen
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('history')}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'history'
-                            ? 'bg-card shadow-sm text-white'
-                            : 'text-muted-foreground hover:text-white'
-                            }`}
-                    >
-                        <History className="size-4" /> Historial
-                    </button>
+            <div style={{ padding: '18px 16px 0' }}>
+                <div style={{ display: 'flex', padding: 4, borderRadius: 14, background: 'var(--card)', border: '1px solid var(--line)' }}>
+                    {(['summary', 'history'] as const).map(tab => (
+                        <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                            flex: 1, padding: '8px 12px', borderRadius: 11,
+                            background: activeTab === tab ? 'var(--card-2)' : 'transparent',
+                            color: activeTab === tab ? 'var(--fg)' : 'var(--fg-mute)',
+                            border: `1px solid ${activeTab === tab ? 'var(--line-2)' : 'transparent'}`,
+                            fontSize: 13, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize',
+                        }}>{tab === 'summary' ? 'Summary' : 'History'}</button>
+                    ))}
                 </div>
             </div>
 
-            {/* Tab Content */}
-            <div className="px-6 min-h-[300px]">
-                <AnimatePresence mode="wait">
-                    {activeTab === 'overview' ? (
-                        <motion.div
-                            key="overview"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            className="space-y-6"
-                        >
-                            {/* Stats Overview */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-card border border-border p-4 rounded-2xl flex flex-col items-center justify-center gap-2">
-                                    <div className="p-2 bg-primary/10 rounded-full text-primary">
-                                        <Trophy className="size-6" />
-                                    </div>
-                                    <span className="text-2xl font-black">{dashboardStats?.calories_burned ? Math.floor(dashboardStats.calories_burned / 300) : 0}</span>
-                                    <span className="text-xs text-muted-foreground">Entrenamientos</span>
+            {/* Tab content */}
+            {activeTab === 'summary' ? (
+                <div style={{ padding: '18px 16px 0' }}>
+                    {/* Stat grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+                        {[
+                            { icon: <Dumbbell size={16}/>, value: workoutCount, label: 'Workouts', tone: 'var(--accent)' },
+                            { icon: <Clock size={16}/>,    value: totalTimeLabel, label: 'Total time', tone: 'var(--data)' },
+                            { icon: <Flame size={16}/>,    value: kcalBurned.toLocaleString(), label: 'Kcal burned', tone: 'var(--energy)' },
+                            { icon: <Zap size={16}/>,      value: `${streak}d`, label: 'Streak', tone: 'var(--accent)' },
+                        ].map(s => (
+                            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: 14 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                    <span style={{
+                                        width: 28, height: 28, borderRadius: 9,
+                                        background: `color-mix(in oklch, ${s.tone} 16%, transparent)`,
+                                        display: 'grid', placeItems: 'center', color: s.tone,
+                                    }}>{s.icon}</span>
                                 </div>
-                                <div className="bg-card border border-border p-4 rounded-2xl flex flex-col items-center justify-center gap-2">
-                                    <div className="p-2 bg-secondary/10 rounded-full text-secondary">
-                                        <Activity className="size-6" />
+                                <div className="num" style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--fg)' }}>{s.value}</div>
+                                <div style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 2 }}>{s.label}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Quick links */}
+                    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden' }}>
+                        {[
+                            { icon: <Users size={18}/>, label: 'Public profile', sub: 'View your community page', to: `/community/user/${user?.id}` },
+                            { icon: <Scale size={18}/>, label: 'Personal data', sub: 'Weight, height, BMI', to: '/profile/personal-data' },
+                            { icon: <TrendingUp size={18}/>, label: 'Progress', sub: 'Daily activity & charts', to: '/progress' },
+                        ].map((item, i, arr) => (
+                            <Link key={item.label} to={item.to} style={{ textDecoration: 'none' }}>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 12,
+                                    padding: '14px 16px',
+                                    borderBottom: i < arr.length - 1 ? '1px solid var(--line)' : 'none',
+                                }}>
+                                    <span style={{
+                                        width: 36, height: 36, borderRadius: 11,
+                                        background: 'var(--card-2)', color: 'var(--fg-mute)',
+                                        display: 'grid', placeItems: 'center',
+                                    }}>{item.icon}</span>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{item.label}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--fg-dim)', marginTop: 1 }}>{item.sub}</div>
                                     </div>
-                                    <span className="text-2xl font-black">{dashboardStats?.time_minutes ? Math.floor(dashboardStats.time_minutes / 60) : 0}h</span>
-                                    <span className="text-xs text-muted-foreground">Tiempo Total</span>
+                                    <ChevronRight size={14} color="var(--fg-dim)"/>
                                 </div>
-                            </div>
-
-                            {/* Menu Options */}
-                            <div className="space-y-3">
-                                <p className="text-sm font-bold text-muted-foreground ml-1 mb-2">CUENTA</p>
-
-                                <Link to={`/community/user/${user?.id}`}>
-                                    <div className="w-full bg-card border border-border p-4 mb-3 rounded-2xl flex items-center justify-between group hover:border-primary transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-pink-500/10 rounded-lg text-pink-500">
-                                                <UserIcon className="size-5" />
-                                            </div>
-                                            <span className="font-medium">Mi Perfil Social</span>
-                                        </div>
-                                        <ChevronRight className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                                    </div>
-                                </Link>
-
-                                <Link to="/profile/personal-data">
-                                    <div className="w-full bg-card border border-border p-4 rounded-2xl flex items-center justify-between group hover:border-primary transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
-                                                <UserIcon className="size-5" />
-                                            </div>
-                                            <span className="font-medium">Datos Personales</span>
-                                        </div>
-                                        <ChevronRight className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                                    </div>
-                                </Link>
-                            </div>
-                        </motion.div>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div style={{ padding: '18px 16px 0' }}>
+                    {loadingHistory ? (
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
+                            <div style={{
+                                width: 32, height: 32, borderRadius: '50%',
+                                border: '3px solid var(--accent)', borderTopColor: 'transparent',
+                                animation: 'spin 0.8s linear infinite',
+                            }}/>
+                        </div>
                     ) : (
-                        <motion.div
-                            key="history"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                        >
-                            {isLoadingHistory ? (
-                                <div className="flex justify-center py-12">
-                                    <div className="size-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                                </div>
-                            ) : (
-                                <WorkoutHistoryList
-                                    workouts={workouts}
-                                    routines={routinesMap}
-                                    exercises={exercisesMap}
-                                />
-                            )}
-                        </motion.div>
+                        <WorkoutHistoryList workouts={workouts} routines={routinesMap} exercises={exercisesMap}/>
                     )}
-                </AnimatePresence>
+                </div>
+            )}
+
+            <div style={{ textAlign: 'center', padding: '24px 0 0', color: 'var(--fg-dim)', fontSize: 11 }}>
+                GymTrack v1.1.0 · Gamified
             </div>
 
-            <div className="px-6 pb-6 text-center mt-8">
-                <p className="text-xs text-muted-foreground">GymTrack v1.1.0 (Gamified)</p>
-            </div>
+            {showRanks && (
+                <RanksModal
+                    level={level}
+                    xp={xp}
+                    globalPosition={globalPosition}
+                    totalUsers={totalUsers}
+                    onClose={() => setShowRanks(false)}
+                />
+            )}
         </div>
     );
 }

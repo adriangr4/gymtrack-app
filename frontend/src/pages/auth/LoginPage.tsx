@@ -2,14 +2,19 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
-import { Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+
+const inputStyle: React.CSSProperties = {
+    flex: 1, background: 'transparent', border: 0, outline: 'none',
+    color: 'var(--fg)', fontSize: 14, fontFamily: 'inherit',
+};
 
 export function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
+    const [showPw, setShowPw] = useState(false);
 
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -18,126 +23,133 @@ export function LoginPage() {
         e.preventDefault();
         setError('');
         setLoading(true);
-
         try {
-            // Adjust endpoint based on backend structure later
-            // Using standard OAuth2 form data usually required by FastAPI's OAuth2PasswordRequestForm
-            const formData = new FormData();
-            formData.append('username', email); // FastAPI expects 'username' even for email
-            formData.append('password', password);
-
-            const response = await api.post('/login/access-token', formData);
-
-            // Assuming response structure: { access_token: "...", token_type: "bearer", user: { ... } }
-            // If backend doesn't return user info on login, we might need a second call to /users/me
-            const { access_token, user } = response.data;
-
-            // Fallback if user is not in response, try to decode or fetch (mock for now if needed)
-            const userData = user || { id: 1, username: 'Adrian', email: email };
-
-            login(access_token, userData);
+            const fd = new FormData();
+            fd.append('username', email);
+            fd.append('password', password);
+            const { data } = await api.post('/login/access-token', fd);
+            if (!data.user || !data.access_token) { setError('Respuesta inválida del servidor.'); return; }
+            login(data.access_token, data.user);
             navigate('/');
         } catch (err: any) {
-            console.error(err);
-            setError(err.response?.data?.detail || 'Error al iniciar sesión. Verifica tus credenciales.');
+            setError(err.response?.data?.detail || 'Credenciales incorrectas.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background relative overflow-hidden">
-            {/* Background decorations */}
-            {/* Animated Background */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {/* Floating Dumbbells */}
-                <div className="absolute top-10 left-10 text-primary/10 animate-float">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M6 5h12v2H6zm0 12h12v2H6zM2 9h20v6H2z" /></svg>
+        <div style={{ minHeight: '100dvh', background: 'var(--bg)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+
+            {/* Mesh background */}
+            <div style={{
+                position: 'absolute', inset: 0, pointerEvents: 'none',
+                background: `
+                    radial-gradient(70% 50% at 80% 0%, color-mix(in oklch, var(--accent) 25%, transparent), transparent 60%),
+                    radial-gradient(60% 40% at 0% 100%, color-mix(in oklch, var(--energy) 22%, transparent), transparent 60%),
+                    radial-gradient(50% 30% at 100% 100%, color-mix(in oklch, var(--data) 22%, transparent), transparent 60%)
+                `,
+            }}/>
+            {/* Grid lines */}
+            <svg style={{ position: 'absolute', inset: 0, opacity: 0.05, pointerEvents: 'none', width: '100%', height: '100%' }}>
+                {Array.from({ length: 20 }, (_, i) => <line key={`h${i}`} x1="0" y1={i * 44} x2="100%" y2={i * 44} stroke="white"/>)}
+                {Array.from({ length: 12 }, (_, i) => <line key={`v${i}`} x1={i * 44} y1="0" x2={i * 44} y2="100%" stroke="white"/>)}
+            </svg>
+
+            <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', maxWidth: 420, width: '100%', margin: '0 auto', padding: '0 28px' }}>
+
+                {/* Logo */}
+                <div style={{ paddingTop: 64, marginBottom: 40 }}>
+                    <div style={{
+                        width: 52, height: 52, borderRadius: 16,
+                        background: 'var(--accent)', color: 'var(--accent-ink)',
+                        display: 'grid', placeItems: 'center', marginBottom: 32,
+                        boxShadow: '0 0 32px color-mix(in oklch, var(--accent) 35%, transparent)',
+                    }}>
+                        <svg width={26} height={26} viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/>
+                        </svg>
+                    </div>
+                    <div className="display" style={{ fontSize: 36, color: 'var(--fg)', marginBottom: 8 }}>
+                        Welcome<br/>back.
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--fg-mute)' }}>
+                        Sign in to continue your <span style={{ color: 'var(--accent)', fontWeight: 600 }}>GymTrack</span> journey.
+                    </div>
                 </div>
-                <div className="absolute bottom-20 right-10 text-secondary/10 animate-float-delayed">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22 14.86 20.57 16.29 22 18.43 19.86 19.86 21.29 21.29 19.86l-1.43-1.43 2.14-2.14 1.43 1.43L22 16.29z" /></svg>
-                </div>
 
-                {/* Heartbeat Line */}
-                <div className="absolute top-1/2 left-0 w-full h-32 -translate-y-1/2 opacity-5 pointer-events-none">
-                    <svg className="w-full h-full" viewBox="0 0 1000 100" preserveAspectRatio="none">
-                        <path d="M0 50 H900 L910 20 L920 80 L930 50 H1000" stroke="currentColor" strokeWidth="2" fill="none" className="text-primary animate-pulse-slow" />
-                    </svg>
-                </div>
-
-                {/* Rotating Plates */}
-                <div className="absolute -top-20 -right-20 size-96 rounded-full border-[20px] border-primary/5 animate-spin-slow border-dashed"></div>
-                <div className="absolute -bottom-20 -left-20 size-80 rounded-full border-[15px] border-secondary/5 animate-spin-slow border-dashed" style={{ animationDirection: 'reverse' }}></div>
-
-                {/* Gradient Mesh */}
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/80 to-background z-0"></div>
-            </div>
-
-            <div className="relative z-10 w-full max-w-sm space-y-8 animate-in fade-in zoom-in duration-500">
-                <div className="text-center space-y-2">
-                    <h1 className="text-4xl font-black tracking-tighter text-foreground">
-                        Gym<span className="text-primary">Track</span>
-                    </h1>
-                    <p className="text-muted-foreground">Tu progreso, tu ritmo, tu éxito.</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Form */}
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {error && (
-                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-medium text-center animate-in shake">
-                            {error}
-                        </div>
+                        <div style={{
+                            padding: '10px 14px', borderRadius: 12,
+                            background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)',
+                            color: '#f87171', fontSize: 13, fontWeight: 500,
+                        }}>{error}</div>
                     )}
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300 ml-1">Email</label>
-                        <input
-                            type="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                            placeholder="usuario@ejemplo.com"
-                        />
+                    {/* Email */}
+                    <div>
+                        <div className="eyebrow" style={{ marginBottom: 6 }}>Email</div>
+                        <div style={{
+                            height: 50, borderRadius: 14,
+                            background: 'var(--card)', border: '1px solid var(--line-2)',
+                            display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10,
+                        }}>
+                            <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                                placeholder="you@example.com" style={inputStyle}
+                                onFocus={e => (e.currentTarget.parentElement!.style.borderColor = 'color-mix(in oklch, var(--accent) 60%, var(--line))')}
+                                onBlur={e => (e.currentTarget.parentElement!.style.borderColor = 'var(--line-2)')}
+                            />
+                        </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300 ml-1">Contraseña</label>
-                        <div className="relative">
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all pr-12"
-                                placeholder="••••••••"
+                    {/* Password */}
+                    <div>
+                        <div className="eyebrow" style={{ marginBottom: 6 }}>Password</div>
+                        <div style={{
+                            height: 50, borderRadius: 14,
+                            background: 'var(--card)', border: '1px solid var(--line-2)',
+                            display: 'flex', alignItems: 'center', padding: '0 14px', gap: 10,
+                        }}>
+                            <input type={showPw ? 'text' : 'password'} required value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                placeholder="••••••••" style={inputStyle}
+                                onFocus={e => (e.currentTarget.parentElement!.style.borderColor = 'color-mix(in oklch, var(--accent) 60%, var(--line))')}
+                                onBlur={e => (e.currentTarget.parentElement!.style.borderColor = 'var(--line-2)')}
                             />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
-                            >
-                                {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                            <button type="button" onClick={() => setShowPw(v => !v)}
+                                style={{ background: 'none', border: 0, color: 'var(--fg-dim)', cursor: 'pointer', padding: 0, display: 'grid', placeItems: 'center' }}>
+                                {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
                             </button>
                         </div>
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-primary hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 rounded-2xl shadow-[0_0_20px_rgba(19,91,236,0.4)] transition-all flex items-center justify-center gap-2 mt-4"
-                    >
-                        {loading ? <Loader2 className="animate-spin size-5" /> : (
-                            <>
-                                Entrar <ArrowRight className="size-5" />
-                            </>
-                        )}
+                    {/* Submit */}
+                    <button type="submit" disabled={loading} style={{
+                        marginTop: 8, width: '100%', height: 54, borderRadius: 16, border: 0,
+                        background: loading ? 'color-mix(in oklch, var(--accent) 50%, transparent)' : 'var(--accent)',
+                        color: 'var(--accent-ink)', fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        boxShadow: '0 4px 24px color-mix(in oklch, var(--accent) 30%, transparent)',
+                        transition: 'opacity 0.15s',
+                    }}>
+                        {loading ? <Loader2 size={18} className="animate-spin"/> : <>Sign in <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></>}
                     </button>
                 </form>
 
-                <p className="text-center text-sm text-muted-foreground">
-                    ¿No tienes cuenta?{' '}
-                    <Link to="/register" className="text-primary font-bold hover:underline">
-                        Regístrate gratis
+                {/* Divider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0', color: 'var(--fg-dim)', fontSize: 11 }}>
+                    <div style={{ flex: 1, height: 1, background: 'var(--line)' }}/>
+                    <span>OR</span>
+                    <div style={{ flex: 1, height: 1, background: 'var(--line)' }}/>
+                </div>
+
+                {/* Footer */}
+                <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--fg-mute)', paddingBottom: 40 }}>
+                    New here?{' '}
+                    <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+                        Create account →
                     </Link>
                 </p>
             </div>

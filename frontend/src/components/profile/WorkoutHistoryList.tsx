@@ -3,9 +3,9 @@ import { Calendar, Clock, Flame, ChevronDown, ChevronUp, Trophy, Dumbbell } from
 import { useState } from 'react';
 
 interface WorkoutHistoryListProps {
-    workouts: any[]; // ScheduledWorkout[]
-    routines: Record<string, any>; // id -> Routine
-    exercises: Record<string, any>; // id -> Exercise
+    workouts: any[];
+    routines: Record<string, any>;
+    exercises: Record<string, any>;
 }
 
 export function WorkoutHistoryList({ workouts, routines, exercises }: WorkoutHistoryListProps) {
@@ -107,8 +107,7 @@ export function WorkoutHistoryList({ workouts, routines, exercises }: WorkoutHis
                                         <h4 className="text-xs font-bold uppercase text-muted-foreground tracking-wider mb-2">Resumen de Ejercicios</h4>
 
                                         {workout.logs && workout.logs.length > 0 ? (
-                                            // Group logs by exercise? Typically logs are flat list of sets.
-                                            // We need to group them by exercise_id to show Exercise -> Sets
+
                                             Object.entries(
                                                 workout.logs.reduce((acc: any, log: any) => {
                                                     const exId = log.exercise_id;
@@ -123,7 +122,7 @@ export function WorkoutHistoryList({ workouts, routines, exercises }: WorkoutHis
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <div className="size-8 rounded-lg bg-muted flex items-center justify-center">
                                                                 <img
-                                                                    src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=100"
+                                                                    src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&h=100&fit=crop"
                                                                     className="w-full h-full object-cover rounded-lg opacity-50"
                                                                     alt=""
                                                                 />

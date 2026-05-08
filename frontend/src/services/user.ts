@@ -8,6 +8,17 @@ export interface DashboardStats {
     mission_name: string;
     mission_duration: number;
     mission_img: string;
+    // All-time lifetime stats
+    total_workouts: number;
+    total_time_minutes: number;
+    total_calories_burned: number;
+    streak_days: number;
+    // Ranking
+    global_position: number;
+    total_users: number;
+    level?: number;
+    xp?: number;
+    rank?: string;
 }
 
 const DASHBOARD_CACHE_KEY = 'gymtrack_dashboard_stats';

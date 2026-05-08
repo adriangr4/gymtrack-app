@@ -1,17 +1,15 @@
 import api from '../api/client';
 
-
-// New Routine Structure for 7-Day Plan
 export interface RoutineExercise {
     exercise_id: string;
-    name?: string; // Optional for UI display before save
+    name?: string;
     series: number;
-    reps: string; // e.g. "10-12" or "8"
-    // specific to the routine context
+    reps: string;
+
 }
 
 export interface DailyRoutine {
-    day: string; // "Monday", "Tuesday", etc.
+    day: string;
     exercises: RoutineExercise[];
 }
 
@@ -20,17 +18,19 @@ export interface Routine {
     name: string;
     description?: string;
     is_public?: boolean;
+    is_predefined?: boolean;
+    difficulty?: string;
+    days_per_week?: number;
     daily_calories_target?: number;
-    weekly_plan?: DailyRoutine[]; // Keep optional for backward compatibility during creation
-    exercises?: any[]; // Allow flat exercise array returned by GET /routines
+    weekly_plan?: DailyRoutine[];
+    exercises?: any[];
     average_rating?: number;
     creator_id?: string;
 }
 
-// LocalStorage Cache Keys & Config
-const CACHE_KEY_ROUTINES = 'gymtrack_routines_list_v3';
+const CACHE_KEY_ROUTINES = 'gymtrack_routines_list_v4';
 const CACHE_PREFIX_DETAILS = 'gymtrack_routine_details_v3_';
-const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 interface CacheItem<T> {
     data: T;
@@ -53,7 +53,7 @@ export const getFromCache = <T>(key: string): T | null => {
         return item.data;
     } catch (e) {
         console.warn("Error reading from cache", e);
-        return null; // Fail safe
+        return null;
     }
 };
 
@@ -72,9 +72,7 @@ const saveToCache = <T>(key: string, data: T) => {
 export const clearRoutineCache = () => {
     try {
         localStorage.removeItem(CACHE_KEY_ROUTINES);
-        // Optional: Clear detailed caches too if we want full fresh state
-        // Needed if we update a routine and want to force re-fetch details
-        // Iterating localStorage is safer to find keys
+
         Object.keys(localStorage).forEach(key => {
             if (key.startsWith(CACHE_PREFIX_DETAILS)) {
                 localStorage.removeItem(key);
@@ -108,11 +106,11 @@ export const getRoutine = async (id: string): Promise<Routine> => {
 
 export const createRoutine = async (routine: Routine): Promise<Routine> => {
     const response = await api.post<Routine>('/routines/', routine);
-    clearRoutineCache(); // Invalidate cache on new creation
+    clearRoutineCache();
     return response.data;
 };
 
 export const deleteRoutine = async (id: string): Promise<void> => {
     await api.delete(`/routines/${id}`);
-    clearRoutineCache(); // Invalidate cache so the deleted routine is removed from lists
+    clearRoutineCache();
 };

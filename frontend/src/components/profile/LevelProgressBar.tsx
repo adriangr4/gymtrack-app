@@ -2,12 +2,12 @@ import { motion } from 'framer-motion';
 
 interface LevelProgressBarProps {
     level: number;
-    progress: number; // 0 to 100
+    progress: number;
     rank: string;
 }
 
 export function LevelProgressBar({ level, progress, rank }: LevelProgressBarProps) {
-    // Rank colors
+
     const getRankColor = (rank: string) => {
         switch (rank.toLowerCase()) {
             case 'bronze': return 'from-orange-700 to-orange-400';

@@ -70,7 +70,7 @@ export function PublicProfilePage() {
     return (
         <div className="min-h-screen bg-background text-foreground pb-20">
 
-            {/* ── Sticky Header ── */}
+            {}
             <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="p-2 hover:bg-muted rounded-full transition-colors">
                     <ArrowLeft className="size-6" />
@@ -80,16 +80,16 @@ export function PublicProfilePage() {
 
             <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
 
-                {/* ── Profile Card ── */}
+                {}
                 <div className="bg-card rounded-3xl border border-border p-6 flex items-center gap-5">
                     <div
                         className="size-20 rounded-full ring-4 ring-primary ring-offset-2 ring-offset-background bg-cover bg-center shrink-0"
-                        style={{ backgroundImage: `url("${profile.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`}")` }}
+                        style={{ backgroundImage: `url("${profile.profile_picture || 'https://ui-avatars.com/api/?name=User&background=135bec&color=fff&size=100'}")` }}
                     />
                     <div className="flex-1 min-w-0">
                         <h2 className="text-xl font-black truncate">{profile.username}</h2>
 
-                        {/* Followers / Following */}
+                        {}
                         <div className="flex gap-4 mt-1 mb-3">
                             <div className="text-center">
                                 <p className="font-bold text-lg leading-tight">{profile.followers_count}</p>
@@ -101,7 +101,7 @@ export function PublicProfilePage() {
                             </div>
                         </div>
 
-                        {/* Follow Button */}
+                        {}
                         <button
                             onClick={handleFollow}
                             disabled={followLoading}
@@ -122,7 +122,7 @@ export function PublicProfilePage() {
                     </div>
                 </div>
 
-                {/* ── Prestige Metrics ── */}
+                {}
                 <div className="grid grid-cols-2 gap-3">
                     <div className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3">
                         <div className="p-2.5 bg-primary/10 rounded-xl">
@@ -152,7 +152,7 @@ export function PublicProfilePage() {
                     </div>
                 </div>
 
-                {/* ── Content Tabs ── */}
+                {}
                 <div className="flex gap-2 bg-muted/50 p-1 rounded-2xl">
                     {(['routine', 'diet'] as const).map(tab => (
                         <button
@@ -171,7 +171,7 @@ export function PublicProfilePage() {
                     ))}
                 </div>
 
-                {/* ── Posts Grid ── */}
+                {}
                 {filteredPosts.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                         <p className="text-4xl mb-3">{activeTab === 'routine' ? '🏋️' : '🥗'}</p>
@@ -181,8 +181,8 @@ export function PublicProfilePage() {
                     <div className="grid grid-cols-2 gap-3">
                         {filteredPosts.map(post => {
                             const fallback = post.content_type === 'routine'
-                                ? 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400&auto=format&fit=crop'
-                                : 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=400&auto=format&fit=crop';
+                                ? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&h=400&fit=crop'
+                                : 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600&h=400&fit=crop';
                             const avgRating = post.rating_count > 0 ? (post.rating_sum / post.rating_count).toFixed(1) : '−';
 
                             return (

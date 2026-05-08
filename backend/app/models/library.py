@@ -91,7 +91,6 @@ class Diet(Base):
     def fats(self):
         return sum([(f.food.fat_per_100g * f.quantity_grams / 100) for f in self.foods]) if self.foods else 0
 
-
 class DietFood(Base):
     __tablename__ = "diet_foods"
 

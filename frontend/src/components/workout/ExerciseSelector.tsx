@@ -54,7 +54,7 @@ export function ExerciseSelector({ isOpen, onClose, onSelect }: ExerciseSelector
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-card border border-border w-full max-w-lg h-[80vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                {/* Header */}
+                {}
                 <div className="p-4 border-b border-border flex items-center justify-between bg-card z-10">
                     <div>
                         <h3 className="font-bold text-lg">Seleccionar Ejercicio</h3>
@@ -65,7 +65,7 @@ export function ExerciseSelector({ isOpen, onClose, onSelect }: ExerciseSelector
                     </button>
                 </div>
 
-                {/* Search & Filter */}
+                {}
                 <div className="p-4 space-y-3 bg-muted/30">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -98,7 +98,7 @@ export function ExerciseSelector({ isOpen, onClose, onSelect }: ExerciseSelector
                     </div>
                 </div>
 
-                {/* List */}
+                {}
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">

@@ -14,9 +14,7 @@ def read_exercises(
     skip: int = 0,
     limit: int = 100,
 ):
-    """
-    Retrieve exercises.
-    """
+
     exercises = crud.get_multi(db, skip=skip, limit=limit)
     return exercises
 
@@ -26,8 +24,6 @@ def create_exercise(
     db: firestore.Client = Depends(get_db),
     exercise_in: schemas.ExerciseCreate,
 ):
-    """
-    Create new exercise.
-    """
+
     exercise = crud.create(db=db, obj_in=exercise_in)
     return exercise

@@ -1,7 +1,7 @@
 import api from '../api/client';
 
 export interface Diet {
-    id: string; // Changed from number
+    id: string;
     name: string;
     description?: string;
     calories: number;
@@ -9,7 +9,7 @@ export interface Diet {
     carbs: number;
     fats: number;
     image_url?: string;
-    meals?: any[]; // Expand if we have a Meal model
+    meals?: any[];
     user_id?: string;
 }
 
@@ -37,7 +37,11 @@ export const getDiets = async (): Promise<Diet[]> => {
     return response.data;
 };
 
+export const clearDietsCache = (): void => {
+    localStorage.removeItem(DIETS_CACHE_KEY);
+};
+
 export const deleteDiet = async (id: string): Promise<void> => {
     await api.delete(`/diets/${id}`);
-    localStorage.removeItem(DIETS_CACHE_KEY);
+    clearDietsCache();
 };

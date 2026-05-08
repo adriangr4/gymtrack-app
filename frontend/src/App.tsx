@@ -19,8 +19,6 @@ import { DailyProgressPage } from './pages/tracking/DailyProgressPage';
 import { DietCreatorPage } from './pages/diet/DietCreatorPage';
 import { DietDetailsPage } from './pages/diet/DietDetailsPage';
 
-// Placeholder Pages (we will implement them next)
-
 function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background text-foreground">Cargando...</div>;
@@ -53,7 +51,6 @@ function App() {
             <Route path="/history/:id" element={<WorkoutDetailsPage />} />
             <Route path="/progress" element={<DailyProgressPage />} />
           </Route>
-
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

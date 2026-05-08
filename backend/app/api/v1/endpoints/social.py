@@ -15,10 +15,6 @@ import pytz
 
 router = APIRouter()
 
-# ─────────────────────────────────────────
-# FEED
-# ─────────────────────────────────────────
-
 @router.get("/feed", response_model=List[PostSchema])
 def get_social_feed(
     db: firestore.Client = Depends(get_db),
@@ -34,17 +30,17 @@ def get_social_feed(
             user_id = current_user.id
             follows_a = db.collection("follows").where(filter=firestore.FieldFilter("follower_id", "==", user_id)).stream()
             following_ids = {d.to_dict().get("following_id") for d in follows_a}
-            
+
             follows_b = db.collection("follows").where(filter=firestore.FieldFilter("following_id", "==", user_id)).stream()
             follower_ids = {d.to_dict().get("follower_id") for d in follows_b}
-            
+
             mutuals = following_ids.intersection(follower_ids)
             target_creator_ids = list(mutuals)
-            
+
             if not target_creator_ids:
                 return []
 
-        docs = posts_ref.order_by("created_at", direction=firestore.Query.DESCENDING).limit(limit * 3).stream()  # fetch more to filter in memory
+        docs = posts_ref.order_by("created_at", direction=firestore.Query.DESCENDING).limit(limit * 3).stream()
         results = []
         for doc in docs:
             data = doc.to_dict()
@@ -72,11 +68,6 @@ def get_social_feed(
         except Exception as fallback_e:
             raise HTTPException(status_code=500, detail=f"Feed error: {fallback_e}")
 
-
-# ─────────────────────────────────────────
-# SHARE
-# ─────────────────────────────────────────
-
 @router.post("/share", response_model=PostSchema)
 def share_content(
     *,
@@ -84,7 +75,7 @@ def share_content(
     post_in: PostCreate,
     current_user: Any = Depends(deps.get_current_active_user),
 ):
-    """Shares a user's routine or diet to the community feed."""
+
     content_id = post_in.content_id
     if post_in.content_type == "routine":
         content = routine_crud.get(db=db, id=content_id)
@@ -106,11 +97,6 @@ def share_content(
 
     return PostSchema(id=doc_ref.id, **data)
 
-
-# ─────────────────────────────────────────
-# LIKES
-# ─────────────────────────────────────────
-
 @router.post("/posts/{post_id}/like")
 def toggle_like(
     post_id: str,
@@ -129,7 +115,7 @@ def toggle_like(
         likes.remove(current_user.id)
     else:
         likes.append(current_user.id)
-        # Notify
+
         creator_id = data.get("creator_id")
         if creator_id and creator_id != current_user.id:
             db.collection("notifications").add({
@@ -147,11 +133,6 @@ def toggle_like(
     post_ref.update({"likes": likes})
     return {"success": True, "likes": likes}
 
-
-# ─────────────────────────────────────────
-# RATINGS
-# ─────────────────────────────────────────
-
 @router.post("/posts/{post_id}/rate")
 def rate_post(
     post_id: str,
@@ -166,7 +147,6 @@ def rate_post(
 
     data = doc.to_dict()
 
-    # Check if user already rated this post (prevent double-voting)
     existing_rating = db.collection("content_ratings")\
         .where(filter=firestore.FieldFilter("rater_id", "==", current_user.id))\
         .where(filter=firestore.FieldFilter("post_id", "==", post_id))\
@@ -183,14 +163,12 @@ def rate_post(
         "rating_count": new_count
     })
 
-    # Save individual rating record (includes post_id for lookup)
     rating_data = rating_in.model_dump()
     rating_data['rater_id'] = current_user.id
     rating_data['post_id'] = post_id
     rating_data['created_at'] = datetime.now(pytz.utc)
     db.collection("content_ratings").add(rating_data)
 
-    # Update creator's aggregate rating stats
     creator_id = data.get("creator_id")
     content_type = data.get("content_type")
     if creator_id and content_type in ("routine", "diet"):
@@ -207,11 +185,6 @@ def rate_post(
 
     return {"success": True, "rating_sum": new_sum, "rating_count": new_count}
 
-
-# ─────────────────────────────────────────
-# IMPORT (rating-gated)
-# ─────────────────────────────────────────
-
 @router.post("/import")
 def import_content(
     post_id: str,
@@ -220,10 +193,7 @@ def import_content(
     db: firestore.Client = Depends(get_db),
     current_user: Any = Depends(deps.get_current_active_user),
 ):
-    """Clones a routine or diet to the current user's library.
-    Requires the user to have rated the post first.
-    """
-    # ── Rating gate ──
+
     existing = db.collection("content_ratings")\
         .where(filter=firestore.FieldFilter("rater_id", "==", current_user.id))\
         .where(filter=firestore.FieldFilter("post_id", "==", post_id))\
@@ -240,13 +210,11 @@ def import_content(
                 print(f"ERROR: Routine {content_id} not found in DB")
                 raise HTTPException(status_code=404, detail="Original routine not found")
 
-            # Use jsonable_encoder to ensure proper serialization (avoids datetime/Pydantic issues)
             clone_data = jsonable_encoder(original)
-            
-            # Strip fields that should not be copied
+
             for field in ["id", "exercises", "average_rating", "rating_count"]:
                 clone_data.pop(field, None)
-            
+
             clone_data["name"] = f"{clone_data.get('name', 'Routine')} (Importada)"
             clone_data["creator_id"] = current_user.id
             clone_data["is_public"] = False
@@ -258,7 +226,6 @@ def import_content(
             new_routine = routine_crud.create(db=db, obj_in=clone_data)
             print(f"INFO: New routine created with id={new_routine.id}")
 
-            # Exercises are stored in the ROOT 'routine_exercises' collection
             exercises_stream = db.collection("routine_exercises").where(
                 filter=firestore.FieldFilter("routine_id", "==", content_id)
             ).stream()
@@ -336,11 +303,6 @@ def import_content(
         print(f"ERROR during import: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to import content: {type(e).__name__}: {str(e)}")
 
-
-# ─────────────────────────────────────────
-# PREVIEW (content details before import)
-# ─────────────────────────────────────────
-
 @router.get("/preview/{content_type}/{content_id}")
 def preview_content(
     content_type: str,
@@ -348,7 +310,7 @@ def preview_content(
     db: firestore.Client = Depends(get_db),
     current_user: Any = Depends(deps.get_current_active_user),
 ):
-    """Returns detailed content (exercises/meals) so user can preview before importing."""
+
     if content_type == "routine":
         routine_doc = db.collection("routines").document(content_id).get()
         if not routine_doc.exists:
@@ -356,7 +318,6 @@ def preview_content(
         routine_data = routine_doc.to_dict()
         routine_data["id"] = content_id
 
-        # Fetch exercises from root collection
         exs_stream = db.collection("routine_exercises").where(
             filter=firestore.FieldFilter("routine_id", "==", content_id)
         ).stream()
@@ -365,7 +326,7 @@ def preview_content(
         for doc in exs_stream:
             ex_data = doc.to_dict()
             ex_data["id"] = doc.id
-            # Enrich with exercise details
+
             if "exercise_id" in ex_data:
                 ex_doc = db.collection("exercises").document(ex_data["exercise_id"]).get()
                 if ex_doc.exists:
@@ -386,7 +347,6 @@ def preview_content(
     else:
         raise HTTPException(status_code=400, detail="Invalid content type")
 
-
 @router.get("/posts/{post_id}/comments", response_model=List[Comment])
 def get_comments(
     post_id: str,
@@ -406,7 +366,6 @@ def get_comments(
         data = doc.to_dict()
         results.append(Comment(id=doc.id, **data))
     return results
-
 
 @router.post("/posts/{post_id}/comments", response_model=Comment)
 def add_comment(
@@ -433,7 +392,6 @@ def add_comment(
     doc_ref = db.collection("posts").document(post_id).collection("comments").document()
     doc_ref.set(comment_data)
 
-    # Increment comment_count on the post
     post_ref.update({"comment_count": firestore.Increment(1)})
 
     creator_id = post_data.get("creator_id")
@@ -452,11 +410,6 @@ def add_comment(
 
     return Comment(id=doc_ref.id, **comment_data)
 
-
-# ─────────────────────────────────────────
-# PUBLIC PROFILE & FOLLOW
-# ─────────────────────────────────────────
-
 @router.get("/users/{user_id}/public", response_model=PublicUserProfile)
 def get_public_profile(
     user_id: str,
@@ -469,7 +422,6 @@ def get_public_profile(
 
     user_data = user_doc.to_dict()
 
-    # Calculate avg ratings from user fields
     r_sum = user_data.get("routine_rating_sum", 0)
     r_count = user_data.get("routine_rating_count", 0)
     d_sum = user_data.get("diet_rating_sum", 0)
@@ -478,19 +430,16 @@ def get_public_profile(
     routine_avg = round(r_sum / r_count, 2) if r_count > 0 else 0.0
     diet_avg = round(d_sum / d_count, 2) if d_count > 0 else 0.0
 
-    # Count followers
     followers_docs = db.collection("follows")\
         .where(filter=firestore.FieldFilter("following_id", "==", user_id))\
         .stream()
     followers_count = sum(1 for _ in followers_docs)
 
-    # Count following
     following_docs = db.collection("follows")\
         .where(filter=firestore.FieldFilter("follower_id", "==", user_id))\
         .stream()
     following_count = sum(1 for _ in following_docs)
 
-    # Is current user following this user?
     is_following_docs = db.collection("follows")\
         .where(filter=firestore.FieldFilter("follower_id", "==", current_user.id))\
         .where(filter=firestore.FieldFilter("following_id", "==", user_id))\
@@ -509,14 +458,13 @@ def get_public_profile(
         is_following=is_following,
     )
 
-
 @router.get("/users/{user_id}/posts", response_model=List[PostSchema])
 def get_user_posts(
     user_id: str,
     db: firestore.Client = Depends(get_db),
     current_user: Any = Depends(deps.get_current_active_user),
 ):
-    """Get all public posts from a specific user."""
+
     docs = db.collection("posts")\
         .where(filter=firestore.FieldFilter("creator_id", "==", user_id))\
         .stream()
@@ -529,7 +477,6 @@ def get_user_posts(
     results.sort(key=lambda x: x.created_at, reverse=True)
     return results
 
-
 @router.post("/users/{user_id}/follow")
 def follow_user(
     user_id: str,
@@ -539,7 +486,6 @@ def follow_user(
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot follow yourself")
 
-    # Idempotent: check if already following
     existing = db.collection("follows")\
         .where(filter=firestore.FieldFilter("follower_id", "==", current_user.id))\
         .where(filter=firestore.FieldFilter("following_id", "==", user_id))\
@@ -567,7 +513,6 @@ def follow_user(
     })
     return {"success": True, "action": "followed"}
 
-
 @router.delete("/users/{user_id}/follow")
 def unfollow_user(
     user_id: str,
@@ -586,10 +531,6 @@ def unfollow_user(
 
     return {"success": True, "action": "unfollowed", "deleted": deleted}
 
-# ─────────────────────────────────────────
-# MODERATION (Delete Posts/Comments)
-# ─────────────────────────────────────────
-
 @router.delete("/posts/{post_id}")
 def delete_post(
     post_id: str,
@@ -601,17 +542,16 @@ def delete_post(
     if not doc.exists:
         raise HTTPException(status_code=404, detail="Post not found")
     data = doc.to_dict()
-    
-    # Allow creator or admin
+
     if data.get("creator_id") != current_user.id and not getattr(current_user, 'is_admin', False):
         raise HTTPException(status_code=403, detail="Not authorized to delete this post")
-        
+
     post_ref.delete()
-    
+
     comments = post_ref.collection("comments").stream()
     for c in comments:
         c.reference.delete()
-        
+
     return {"success": True}
 
 @router.delete("/posts/{post_id}/comments/{comment_id}")
@@ -626,18 +566,16 @@ def delete_comment(
     if not doc.exists:
         raise HTTPException(status_code=404, detail="Comment not found")
     data = doc.to_dict()
-    
+
     post_doc = db.collection("posts").document(post_id).get()
     post_creator = post_doc.to_dict().get("creator_id") if post_doc.exists else None
-    
-    # Allow comment author, post creator, or admin
+
     if data.get("author_id") != current_user.id and post_creator != current_user.id and not getattr(current_user, 'is_admin', False):
         raise HTTPException(status_code=403, detail="Not authorized to delete this comment")
-        
+
     comment_ref.delete()
-    
+
     if post_doc.exists:
         db.collection("posts").document(post_id).update({"comment_count": firestore.Increment(-1)})
-        
-    return {"success": True}
 
+    return {"success": True}

@@ -9,12 +9,14 @@ from app.api.v1.api import api_router
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
-# Set up CORS
+import os
+
+_extra = os.getenv("ALLOWED_ORIGINS", "")
 origins = [
     "http://localhost",
-    "http://localhost:5173", # Vite default port
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
-]
+] + [o.strip() for o in _extra.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,12 +47,9 @@ def read_root():
 @app.get("/health")
 def health_check(db: firestore.Client = Depends(get_db)):
     try:
-        # Simple check: list collections (fast) or just check project
-        # db.collections() returns a generator
-        # Note: python client collections() does not accept limit argument directly in all versions
-        # Just getting the iterator is enough to verify connection structure
+
         cols = db.collections()
-        # triggering a tiny read
+
         next(cols, None)
         return {"status": "ok", "database": "connected", "project": db.project}
     except Exception as e:

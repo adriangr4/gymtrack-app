@@ -1,0 +1,62 @@
+PROMPT PARA INTRODUCIR EN LA IA GENERATIVA (COMO GOOGLE DOCS O CHATGPT)
+
+Instrucción principal para la IA:
+"Actúa como un Arquitecto de Software Senior y redactor técnico. Necesito que generes una memoria técnica universitaria/profesional muy extensa (de más de 15 a 20 páginas) para mi Proyecto de Fin de Curso llamado 'GymTrack'. 
+Tu objetivo es tomar los siguientes datos, expandirlos usando lenguaje formal, académico y técnico de ingeniería de software, y estructurar el documento en Capítulos (Introducción, Análisis de Tecnologías, Diseño del Sistema, Desarrollo del Frontend, Desarrollo del Backend, Base de Datos, Pruebas y Conclusión). Se extremadamente minucioso en cada área."
+
+=======================================================
+CONTEXTO TÉCNICO COMPLETO DEL PROYECTO (PARA QUE LA IA LO EXPANDE):
+=======================================================
+
+1. VISIÓN DEL PROYECTO E INTRODUCCIÓN
+- Nombre: GymTrack.
+- Propósito: Crear una plataforma 'Full-Stack' gamificada para el seguimiento del fitness (entrenamiento y nutrición) fusionada con funciones avanzadas de red social.
+- Problema que resuelve: Las apps actuales separan la dieta del ejercicio, y el ejercicio de la motivación social. GymTrack une dieta, levantamiento de peso, progreso, rangos de experiencia (XP) y una comunidad donde los planes se pueden clonar e importar en tiempo real, todo en una misma PWA (Progressive Web App).
+
+2. ARQUITECTURA DEL SISTEMA Y TECNOLOGÍAS
+Frontend:
+- Creado con React 18 usando Vite (para tiempos de construcción tipo HMR ultrarrápidos y optimización de dependencias).
+- Lenguaje: TypeScript estricto, necesario para compartir con el modelo de datos de Python y evitar que la UI falle en tiempo de ejecución.
+- Estilizado: TailwindCSS + variables CSS modernas, lo que permitió hacer un modo oscuro (Dark Mode) y claro totalmente responsivo ('text-foreground', 'bg-background').
+- Navegación: React Router DOM.
+- Comunicación: Axios, enviando JWT tokens en cabecera cada vez que habla con la API.
+
+Backend:
+- Construido puramente en Python 3 usando FastAPI. Se eligió por encima de Django o Flask por su altísimo rendimiento (usa Starlette bajo el capó y pydantic).
+- Servidor ASGI: Uvicorn multiproceso.
+- Modelado de Datos: Pydantic schemas (Validación estricta de request y response JSONs).
+- Seguridad: Protocolo OAuth2PasswordBearer enviando tokens JWT firmados criptográficamente para el inicio de sesión.
+
+Base de Datos:
+- Google Cloud Firestore (Firebase) mediante el SDK de administración de Python (firebase-admin).
+- ¿Por qué NoSQL instead of SQL? Dada la naturaleza social del proyecto (feeds masivos, subcolecciones de comentarios ilimitadas, arrays de 'likes'), una estructura de documentos JSON (Firestore) ofrecía escalabilidad infinita y la flexibilidad necesaria durante la fase de prototipado rápido, donde los esquemas de Rutina y Dieta cambiaban a diario.
+
+3. FLUJO DE DESARROLLO Y RETOS (FASES)
+
+Fase 1: Motor Base
+- Creación de Contextos de React (`AuthContext.tsx`, `ThemeContext.tsx`).
+- Diseño del menú inferior (`BottomNav.tsx`) usando programación inteligente de z-index para apilar modales y ocultar la navegación cuando el usuario crea una dieta, maximizando el espacio de la pantalla en móviles.
+
+Fase 2: Módulo de Entrenamiento 
+- Interfaz profunda `RoutineCreatorPage.tsx` capaz de guardar matrices de arrays complejos (días de la semana -> múltiples ejercicios -> series objetivo).
+- Creación de un catálogo de ejercicios desde el backend y buscador de rutinas personal.
+
+Fase 3: Módulo de Nutrición (Desarrollo y Pivotaje)
+- Inicialmente se intentó una solicitud a la macro-API externa 'OpenFoodFacts' para extraer calorías.
+- Problema técnico: Tiempos muertos intolerables, enlaces rotos e información incompleta.
+- Solución arquitectónica: Pivotamos a crear nuestra propia base de datos rápida creando en Python un script `seed_foods.py` que inyectó limpiamente cientos de ingredientes verificados a Firebase, haciendo la búsqueda instantánea en la app (0 latencia).
+
+Fase 4: El Motor de Gamificación
+- La app necesita que la retención de usuario sea alta. Diseñé un algoritmo donde al completar misiones diarias y añadir métricas, el usuario gana XP. Se programó el frontend (`LevelProgressBar.tsx`, `LevelUpOverlay.tsx`) usando la biblioteca Framer Motion para celebrar cuando el usuario sube de rango y de Nivel frente a todos sus seguidores.
+
+Fase 5: Complejidad Social y Algoritmos de Deep Copy (Transacciones)
+- Se desarrolló el Endpoint "Feed Global y de Amigos". En vez de seguir la regla estricta de SQL, en NoSQL almacenamos metadatos duplicados estandarizados por Pydantic (avatar, nombre del autor) junto a la publicación para que la carga en la pantalla principal del móvil fuera de O(1), ahorrando decenas de requests secuenciales.
+- La Joya de la Corona: "ImportServer". Programé en FastAPI un mecanismo para que cuando el usuario A le 'Importa' la dieta al usuario B, el Backend se levante, tome el JSON anidado recursivamente, quite los IDs originales, emebeda la ID del usuario A y genere documentos enteramente nuevos en Firebase bajo la pertenencia de A.
+
+Fase 6: Calidad de Software, Notificaciones en Real Time y Moderación
+- Eventos de Notificación: El backend escucha cada 'Like', 'Comentario', o 'Follow', e inyecta silenciosamente documentos de tipo Notificación en la base de datos con timestamps UTC y estado 'no leído'. 
+- El frontend usa un 'Polling' controlado en el componente global `<TopHeader />` para activar íconos rojos que marcan un estilo dinámico y retentivo. 
+- Refuerzo de la Integridad de la App: Preparé a la app para ser lanzada en Producción; al comprobar un atributo lógico de `isAdmin`, sólo el dueño del foro puede erradicar completamente comentarios irrespetuosos o borrar publicaciones del servidor mediante Requests tipo DELETE.
+
+---
+Instrucción final a la IA Generativa: Teniendo estos 6 puntos altamente técnicos como guía universal de eventos y lógicas del curso de desarrollo, expande redactando con introducción formal y amplía enormemente cada fase de tecnología como si estuvieras defendiendo el proyecto técnico universitario e infiriendo todo sobre componentes de UI e interacciones servidor, incluyendo métricas del porqué Firestore vs SQL. Extiende lo máximo posible la redacción técnica.

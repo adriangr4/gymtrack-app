@@ -9,7 +9,7 @@ api.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
-    // Add cache buster
+
     config.params = { ...config.params, _t: Date.now() };
     return config;
 });

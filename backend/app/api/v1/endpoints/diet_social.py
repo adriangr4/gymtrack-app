@@ -9,10 +9,8 @@ from app.schemas.diet_social import Diet as DietSchema, DietCreate, Rating as Ra
 from app.api import deps
 from datetime import datetime
 
-# --- Router ---
 router = APIRouter()
 
-# DIETS
 @router.get("/diets/", response_model=List[DietSchema])
 def read_diets(
     db: firestore.Client = Depends(get_db),
@@ -20,9 +18,7 @@ def read_diets(
     limit: int = 100,
 ):
     try:
-        # Try sorted query (requires index)
-        # We need to access collection directly as get_multi doesn't support custom sort
-        # diet_crud.collection_name is likely 'diets'
+
         collection_ref = db.collection(diet_crud.collection_name)
         docs = collection_ref.order_by("created_at", direction=firestore.Query.DESCENDING).limit(limit).stream()
         def _map_doc(doc):
@@ -30,7 +26,7 @@ def read_diets(
             if "id" in data:
                  del data["id"]
             return diet_crud.model(id=doc.id, **data)
-            
+
         results = [_map_doc(doc) for doc in docs]
         return results
     except Exception as e:
@@ -44,12 +40,11 @@ def create_diet(
     diet_in: DietCreate,
     current_user: Any = Depends(deps.get_current_active_user),
 ):
-    # Pass as dict to inject creator_id
+
     data = diet_in.model_dump()
     data['creator_id'] = current_user.id
     return diet_crud.create(db=db, obj_in=data)
 
-# SOCIAL
 @router.post("/ratings/", response_model=RatingSchema)
 def rate_content(
     *,
@@ -57,20 +52,20 @@ def rate_content(
     rating_in: RatingCreate,
     current_user: Any = Depends(deps.get_current_active_user),
 ):
-    # Check if existing rating
+
     existing = rating_crud.get_by_rater_and_content(
-        db, 
-        rater_id=current_user.id, 
-        content_type=rating_in.content_type, 
+        db,
+        rater_id=current_user.id,
+        content_type=rating_in.content_type,
         content_id=rating_in.content_id
     )
-    
+
     if existing:
-        # Update
+
         return rating_crud.update(db, id=existing.id, obj_in={"score": rating_in.score})
     else:
-        # Create
+
         data = rating_in.model_dump()
         data['rater_id'] = current_user.id
-        data['created_at'] = datetime.utcnow() # Add creation time locally if needed, or let service handle
+        data['created_at'] = datetime.utcnow()
         return rating_crud.create(db=db, obj_in=data)

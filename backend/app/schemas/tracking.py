@@ -24,10 +24,9 @@ class WorkoutLogUpdate(WorkoutLogBase):
 class WorkoutLog(WorkoutLogBase):
     id: str
     created_at: datetime
-    
-    # Nested exercise details
-    exercise: Optional[dict] = None # Using dict to avoid circular imports or complex nesting for now
-    
+
+    exercise: Optional[dict] = None
+
     class Config:
         from_attributes = True
 
@@ -42,19 +41,18 @@ class ScheduledWorkout(ScheduledWorkoutBase):
     logs: List[WorkoutLog] = []
     duration_seconds: Optional[int] = 0
     calories_burned: Optional[float] = 0
-    
+
     class Config:
         from_attributes = True
 
 class ScheduledWorkoutUpdate(ScheduledWorkoutBase):
     pass
 
-# For the Quick Log Session
 class WorkoutSessionLog(BaseModel):
     routine_id: str
     duration_seconds: int
     calories_burned: float
-    rating: int 
+    rating: int
     difficulty: str
     notes: Optional[str] = None
     logs: List[WorkoutLogCreate] = []

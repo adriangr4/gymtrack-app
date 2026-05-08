@@ -1,14 +1,14 @@
 import api from '../api/client';
 
 export interface CreateWorkoutLogData {
-    routine_id: string; // Changed from number
+    routine_id: string;
     duration_seconds: number;
     calories_burned: number;
     rating: number;
     difficulty: 'easy' | 'medium' | 'hard';
     notes?: string;
     logs: Array<{
-        exercise_id: string; // Changed from number
+        exercise_id: string;
         set_number: number;
         reps: number;
         weight_kg: number;
@@ -17,6 +17,10 @@ export interface CreateWorkoutLogData {
 }
 
 const HISTORY_CACHE_KEY = 'gymtrack_history_list';
+
+export const clearHistoryCache = (): void => {
+    localStorage.removeItem(HISTORY_CACHE_KEY);
+};
 
 export const getScheduledWorkoutsCache = (): any[] | null => {
     try {
@@ -31,14 +35,11 @@ export const getScheduledWorkoutsCache = (): any[] | null => {
 };
 
 export const getScheduledWorkouts = async (userId?: string): Promise<any[]> => {
-    const response = await api.get('/tracking/', {
-        params: { user_id: userId }
-    });
+    const params: Record<string, string> = {};
+    if (userId) params.user_id = userId;
+    const response = await api.get('/tracking/', { params });
     try {
-        // Only cache if fetching for current user (no userId param or explicit "me")
-        if (!userId) {
-            localStorage.setItem(HISTORY_CACHE_KEY, JSON.stringify(response.data));
-        }
+        localStorage.setItem(HISTORY_CACHE_KEY, JSON.stringify(response.data));
     } catch (e) {
         console.warn("Failed to save history cache", e);
     }
@@ -50,7 +51,6 @@ export const getWorkoutById = async (workoutId: string) => {
     return response.data;
 };
 
-// Updated to return WorkoutCompletionResponse
 export const logWorkoutSession = async (data: CreateWorkoutLogData) => {
     const response = await api.post('/tracking/log-session', data);
     return response.data;

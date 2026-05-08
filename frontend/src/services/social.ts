@@ -11,7 +11,7 @@ export interface Post {
     creator_name: string;
     creator_avatar?: string;
 
-    likes: string[]; // User IDs
+    likes: string[];
     rating_sum: number;
     rating_count: number;
     comment_count: number;
@@ -39,13 +39,11 @@ export interface PublicUserProfile {
     is_following: boolean;
 }
 
-// ─── Feed ───────────────────────────────
 export const getSocialFeed = async (filter: string = 'global'): Promise<Post[]> => {
     const res = await api.get(`/social/feed?filter=${filter}`);
     return res.data;
 };
 
-// ─── Share ──────────────────────────────
 export const shareToCommunity = async (payload: {
     content_type: 'routine' | 'diet';
     content_id: string;
@@ -59,13 +57,11 @@ export const shareToCommunity = async (payload: {
     return res.data;
 };
 
-// ─── Likes ──────────────────────────────
 export const toggleLike = async (postId: string): Promise<{ success: boolean; likes: string[] }> => {
     const res = await api.post(`/social/posts/${postId}/like`);
     return res.data;
 };
 
-// ─── Ratings ────────────────────────────
 export const ratePost = async (
     postId: string,
     score: number,
@@ -80,7 +76,6 @@ export const ratePost = async (
     return res.data;
 };
 
-// ─── Import (rating-gated) ──────────────
 export const importContent = async (
     postId: string,
     contentType: 'routine' | 'diet',
@@ -92,7 +87,6 @@ export const importContent = async (
     return res.data;
 };
 
-// ─── Comments ───────────────────────────
 export const getComments = async (postId: string): Promise<Comment[]> => {
     const res = await api.get(`/social/posts/${postId}/comments`);
     return res.data;
@@ -103,7 +97,6 @@ export const addComment = async (postId: string, text: string): Promise<Comment>
     return res.data;
 };
 
-// ─── Public Profile ─────────────────────
 export const getPublicProfile = async (userId: string): Promise<PublicUserProfile> => {
     const res = await api.get(`/social/users/${userId}/public`);
     return res.data;
@@ -114,7 +107,6 @@ export const getUserPosts = async (userId: string): Promise<Post[]> => {
     return res.data;
 };
 
-// ─── Follow ─────────────────────────────
 export const followUser = async (userId: string): Promise<{ success: boolean; action: string }> => {
     const res = await api.post(`/social/users/${userId}/follow`);
     return res.data;
@@ -125,7 +117,6 @@ export const unfollowUser = async (userId: string): Promise<{ success: boolean; 
     return res.data;
 };
 
-// ─── Moderation ──────────────────────────
 export const deletePost = async (postId: string): Promise<{ success: boolean }> => {
     const res = await api.delete(`/social/posts/${postId}`);
     return res.data;
@@ -135,4 +126,3 @@ export const deleteComment = async (postId: string, commentId: string): Promise<
     const res = await api.delete(`/social/posts/${postId}/comments/${commentId}`);
     return res.data;
 };
-

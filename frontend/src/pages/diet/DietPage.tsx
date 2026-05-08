@@ -1,174 +1,204 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, ChefHat, Flame } from 'lucide-react';
+import { Plus, ChevronRight } from 'lucide-react';
 import { getDiets, getDietsCache } from '../../services/diet';
-import { useAuth } from '../../context/AuthContext';
-
 import { getRoutinesCache } from '../../services/routines';
+import { useAuth } from '../../context/AuthContext';
+import { getDietImage, seedFrom } from '../../lib/imageUtils';
+import { getNutritionCache, setNutritionCache } from '../../services/nutrition';
+import api from '../../api/client';
+
+function Bar({ pct = 0.5, color = 'var(--accent)', h = 3 }: { pct?: number; color?: string; h?: number }) {
+    return (
+        <div style={{ height: h, borderRadius: h, background: 'var(--line)', overflow: 'hidden', width: '100%' }}>
+            <div style={{ height: '100%', width: `${Math.min(pct, 1) * 100}%`, background: color, borderRadius: h, transition: 'width 0.6s' }} />
+        </div>
+    );
+}
+
+function CalorieRing({ pct = 0 }: { pct?: number }) {
+    const size = 96, sw = 7, r = (size - sw) / 2, c = 2 * Math.PI * r;
+    return (
+        <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+            <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx={size/2} cy={size/2} r={r} stroke="rgba(255,255,255,0.1)" strokeWidth={sw} fill="none"/>
+                <circle cx={size/2} cy={size/2} r={r} stroke="var(--accent)" strokeWidth={sw} fill="none"
+                    strokeDasharray={`${c * Math.min(pct, 1)} ${c}`} strokeLinecap="round"/>
+            </svg>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="num" style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)' }}>
+                    {Math.round(pct * 100)}%
+                </div>
+                <div className="eyebrow">today</div>
+            </div>
+        </div>
+    );
+}
+
+const TEMPLATES = [
+    { id: 'keto-basic',    name: 'Keto',          kcal: 1800, ratio: '5/20/75',  tone: 'oklch(0.72 0.18 340)' },
+    { id: 'mediterranean', name: 'Mediterranean', kcal: 2100, ratio: '20/50/30', tone: 'oklch(0.78 0.20 128)' },
+    { id: 'high-protein',  name: 'Hyper-Protein', kcal: 2400, ratio: '35/40/25', tone: 'oklch(0.78 0.20 36)'  },
+];
 
 export function DietPage() {
     const { user } = useAuth();
-    // Initialize with CACHE to avoid flicker
-    const [userDiets, setUserDiets] = useState<any[]>(() => {
-        const cached = getDietsCache();
-        return cached || [];
+    const [userDiets, setUserDiets] = useState<any[]>(() => getDietsCache() || []);
+    const [nutrition, setNutrition] = useState<any>(() => getNutritionCache() || {
+        total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, goal_calories: 2400,
     });
 
-    // Dynamic Calorie Target Logic
-    // Try to find if the user has an active routine with a calorie target,
-    // or an active diet, otherwise fallback to their profile goal
     const routines = getRoutinesCache() || [];
-    const activeRoutine = routines.find(r => r.id === user?.current_routine_id);
-    const activeDiet = userDiets.find(d => d.id === user?.current_diet_id);
+    const activeRoutine = routines.find((r: any) => r.id === user?.current_routine_id);
+    const activeDiet = userDiets.find((d: any) => d.id === user?.current_diet_id);
 
-    const dynamicCalorieGoal = activeRoutine?.daily_calories_target
+    const goalKcal = nutrition?.goal_calories
+        || activeRoutine?.daily_calories_target
         || activeDiet?.daily_calories_target
         || activeDiet?.total_calories
         || user?.daily_calorie_goal
-        || 2000;
+        || 2400;
+
+    const consumed = nutrition?.total_calories || 0;
+    const pct = goalKcal > 0 ? consumed / goalKcal : 0;
 
     useEffect(() => {
-        const fetchDiets = async () => {
-            try {
-                // Fetch fresh data
-                const diets = await getDiets();
-                setUserDiets(diets);
-            } catch (error) {
-                console.error("Error fetching diets", error);
-            }
-        };
-        fetchDiets();
+        getDiets().then(setUserDiets).catch(console.error);
+        api.get('/nutrition/today')
+            .then(r => { setNutrition(r.data); setNutritionCache(r.data); })
+            .catch(console.error);
     }, []);
 
-    const exampleDiets = [
-        {
-            id: 'keto-basic',
-            name: 'Keto para Principiantes',
-            desc: 'Alta en grasas, baja en carbohidratos.',
-            img: 'https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=1000&auto=format&fit=crop',
-            cals: 1800
-        },
-        {
-            id: 'mediterranean',
-            name: 'Dieta Mediterránea',
-            desc: 'Equilibrada y saludable, rica en vegetales.',
-            img: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=1000&auto=format&fit=crop',
-            cals: 2000
-        },
-        {
-            id: 'high-protein',
-            name: 'Hiperproteica (Volumen)',
-            desc: 'Para ganar masa muscular limpia.',
-            img: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?q=80&w=1000&auto=format&fit=crop',
-            cals: 2500
-        }
+    const macros = [
+        { name: 'Protein', value: Math.round(nutrition?.total_protein || 0), target: Math.round(goalKcal * 0.30 / 4), unit: 'g', color: 'var(--energy)' },
+        { name: 'Carbs',   value: Math.round(nutrition?.total_carbs   || 0), target: Math.round(goalKcal * 0.40 / 4), unit: 'g', color: 'var(--data)' },
+        { name: 'Fats',    value: Math.round(nutrition?.total_fat     || 0), target: Math.round(goalKcal * 0.30 / 9), unit: 'g', color: 'var(--recovery)' },
     ];
+    const remaining = Math.max(0, goalKcal - consumed);
 
     return (
-        <div className="w-full text-foreground p-6 pt-8">
-            <header className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-3xl font-black italic">TU DIETA</h1>
-                    <p className="text-muted-foreground text-sm font-medium">Planifica tus macros</p>
+        <div style={{ background: 'var(--bg)', paddingBottom: 90 }}>
+
+            {/* Header */}
+            <div style={{ padding: '12px 20px 0', display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                    <div className="eyebrow" style={{ marginBottom: 1 }}>NUTRITION</div>
+                    <div className="display" style={{ fontSize: 24, color: 'var(--fg)' }}>Diet</div>
                 </div>
-                <Link to="/diet/create" className="size-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30 hover:scale-105 transition-transform">
-                    <Plus className="size-6" />
+                <Link to="/diet/create" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    background: 'var(--accent)', color: 'var(--accent-ink)',
+                    borderRadius: 12, padding: '8px 14px',
+                    fontSize: 13, fontWeight: 600, textDecoration: 'none',
+                }}>
+                    <Plus size={14}/> New plan
                 </Link>
-            </header>
-
-            {/* Goal Card */}
-            <div className="mb-8 p-6 bg-linear-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-xl relative overflow-hidden">
-                <div className="relative z-10">
-                    <p className="text-white/80 text-xs font-bold uppercase tracking-wider mb-1">Tu Objetivo Diario</p>
-                    <h2 className="text-4xl font-black text-white">{dynamicCalorieGoal} <span className="text-lg font-medium text-white/70">kcal</span></h2>
-
-                    <div className="mt-4 flex gap-4">
-                        <div className="bg-white/10 px-3 py-1.5 rounded-lg backdrop-blur-sm">
-                            <span className="block text-xs text-white/70">Proteína</span>
-                            <span className="font-bold text-sm">~{(dynamicCalorieGoal * 0.3 / 4).toFixed(0)}g</span>
-                        </div>
-                        <div className="bg-white/10 px-3 py-1.5 rounded-lg backdrop-blur-sm">
-                            <span className="block text-xs text-white/70">Carbs</span>
-                            <span className="font-bold text-sm">~{(dynamicCalorieGoal * 0.4 / 4).toFixed(0)}g</span>
-                        </div>
-                        <div className="bg-white/10 px-3 py-1.5 rounded-lg backdrop-blur-sm">
-                            <span className="block text-xs text-white/70">Grasas</span>
-                            <span className="font-bold text-sm">~{(dynamicCalorieGoal * 0.3 / 9).toFixed(0)}g</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                <ChefHat className="absolute bottom-4 right-4 text-white/20 size-24 -rotate-12" />
             </div>
 
-            {/* My Plans Section */}
+            {/* Calorie target hero */}
+            <div style={{ padding: '14px 16px 0' }}>
+                <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 20, padding: 18 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <CalorieRing pct={pct} />
+                        <div style={{ flex: 1 }}>
+                            <div className="eyebrow">DAILY TARGET</div>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+                                <span className="num display" style={{ fontSize: 28, color: 'var(--fg)' }}>{consumed}</span>
+                                <span className="num" style={{ fontSize: 13, color: 'var(--fg-mute)' }}>/ {goalKcal} kcal</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 4 }}>
+                                <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{remaining} kcal</span> remaining today
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Macro blocks */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 16 }}>
+                        {macros.map(m => (
+                            <div key={m.name} style={{ background: 'var(--card-2)', borderRadius: 12, padding: '10px 12px' }}>
+                                <div className="eyebrow" style={{ color: m.color }}>{m.name}</div>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, marginTop: 4 }}>
+                                    <span className="num" style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)' }}>{m.value}</span>
+                                    <span className="num" style={{ fontSize: 10, color: 'var(--fg-dim)' }}>/{m.target}{m.unit}</span>
+                                </div>
+                                <div style={{ marginTop: 6 }}>
+                                    <Bar pct={m.target > 0 ? m.value / m.target : 0} color={m.color} h={3} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* My plans */}
             {userDiets.length > 0 && (
-                <section className="mb-8">
-                    <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                        <ChefHat className="size-5 text-primary" /> Mis Planes
-                    </h2>
-                    <div className="grid gap-4">
-                        {userDiets.map(diet => {
-                            const kcals = diet.total_calories || diet.daily_calories_target;
-                            const fallbackImage = 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=1000&auto=format&fit=crop';
-
+                <div style={{ padding: '22px 16px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg)' }}>My plans</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {userDiets.map((diet) => {
+                            const isActive = user?.current_diet_id === diet.id;
                             return (
-                                <Link key={diet.id} to={`/diet/${diet.id}`} className="relative h-40 rounded-2xl overflow-hidden group cursor-pointer border border-transparent hover:border-primary/50 transition-all block shadow-md">
-                                    <div className="absolute inset-0 bg-cover bg-center transition-transform group-hover:scale-105 duration-500" style={{ backgroundImage: `url("${diet.image_url || fallbackImage}")` }} />
-                                    <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
-
-                                    <div className="absolute bottom-0 left-0 p-4 w-full">
-                                        <div className="flex justify-between items-end">
+                                <Link key={diet.id} to={`/diet/${diet.id}`} style={{ textDecoration: 'none' }}>
+                                    <div style={{
+                                        background: 'var(--card)',
+                                        border: `1px solid ${isActive ? 'color-mix(in oklch, var(--accent) 32%, var(--line))' : 'var(--line)'}`,
+                                        borderRadius: 18, overflow: 'hidden', display: 'flex', alignItems: 'stretch',
+                                    }}>
+                                        <div style={{
+                                            width: 120, flexShrink: 0,
+                                            backgroundImage: `url("${getDietImage(diet.name, seedFrom(diet.id || diet.name))}")`,
+                                            backgroundSize: 'cover', backgroundPosition: 'center',
+                                        }}/>
+                                        <div style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                                             <div>
-                                                <h3 className="text-xl font-bold text-white mb-1">{diet.name}</h3>
-                                                <p className="text-xs text-gray-300 line-clamp-1">{diet.meals?.length || 0} Comidas listadas</p>
+                                                {isActive && (
+                                                    <span style={{
+                                                        display: 'inline-block', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+                                                        background: 'var(--accent)', color: 'var(--accent-ink)',
+                                                        padding: '3px 7px', borderRadius: 5, marginBottom: 6,
+                                                    }}>● ACTIVE</span>
+                                                )}
+                                                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>{diet.name}</div>
+                                                <div className="num" style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 2 }}>
+                                                    {diet.daily_calories_target || diet.total_calories || '—'} kcal · 7 days
+                                                </div>
                                             </div>
-                                            <div className="bg-primary/90 text-white text-xs font-bold px-2 py-1 rounded-md backdrop-blur-sm">
-                                                {kcals} kcal
-                                            </div>
+                                            <ChevronRight size={14} color="var(--fg-dim)"/>
                                         </div>
                                     </div>
-                                    {user?.current_diet_id === diet.id && (
-                                        <div className="absolute top-3 right-3 bg-green-500/90 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-sm border border-green-400">
-                                            ACTIVA
-                                        </div>
-                                    )}
                                 </Link>
                             );
                         })}
                     </div>
-                </section>
+                </div>
             )}
 
-            {/* Example Diets */}
-            <section>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                        <Flame className="size-5 text-orange-500" /> Populares
-                    </h2>
+            {/* Popular templates */}
+            <div style={{ padding: '22px 0 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 16px 10px' }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg)' }}>Popular templates</div>
                 </div>
-
-                <div className="grid gap-4">
-                    {exampleDiets.map(diet => (
-                        <Link key={diet.id} to={`/diet/${diet.id}`} className="relative h-40 rounded-2xl overflow-hidden group cursor-pointer border border-transparent hover:border-primary/50 transition-all block">
-                            <div className="absolute inset-0 bg-cover bg-center transition-transform group-hover:scale-105 duration-500" style={{ backgroundImage: `url("${diet.img}")` }} />
-                            <div className="absolute inset-0 bg-linear-to-t from-black via-black/50 to-transparent" />
-
-                            <div className="absolute bottom-0 left-0 p-4 w-full">
-                                <div className="flex justify-between items-end">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-white mb-1">{diet.name}</h3>
-                                        <p className="text-xs text-gray-300 line-clamp-1">{diet.desc}</p>
-                                    </div>
-                                    <div className="bg-primary/90 text-white text-xs font-bold px-2 py-1 rounded-md backdrop-blur-sm">
-                                        {diet.cals} kcal
-                                    </div>
+                <div style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '0 16px 4px' }} className="no-scrollbar">
+                    {TEMPLATES.map((t, i) => (
+                        <Link key={t.id} to={`/diet/${t.id}`} style={{ textDecoration: 'none' }}>
+                            <div style={{ flexShrink: 0, width: 160, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden' }}>
+                                <div style={{
+                                    height: 80,
+                                    backgroundImage: `url("${getDietImage(t.name, seedFrom(t.id + i))}")`,
+                                    backgroundSize: 'cover', backgroundPosition: 'center',
+                                }}/>
+                                <div style={{ padding: '10px 12px' }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{t.name}</div>
+                                    <div className="num" style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 2 }}>{t.kcal} kcal</div>
+                                    <div style={{ fontSize: 10, color: 'var(--fg-dim)', marginTop: 4 }}>P/C/F · {t.ratio}</div>
                                 </div>
                             </div>
                         </Link>
                     ))}
                 </div>
-            </section>
+            </div>
         </div>
     );
 }

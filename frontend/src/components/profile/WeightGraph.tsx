@@ -24,7 +24,6 @@ export function WeightGraph({ data }: WeightGraphProps) {
         );
     }
 
-    // Calculations for scaling
     const weights = sortedData.map(d => d.weight);
     const minWeight = Math.min(...weights) - 1;
     const maxWeight = Math.max(...weights) + 1;
@@ -38,16 +37,16 @@ export function WeightGraph({ data }: WeightGraphProps) {
     return (
         <div className="w-full h-48 relative">
             <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {/* Grid Lines */}
+                {}
                 {[0, 25, 50, 75, 100].map((y, i) => (
                     <line key={i} x1="0" y1={y} x2="100" y2={y} stroke="currentColor" strokeOpacity="0.1" strokeWidth="0.5" />
                 ))}
 
-                {/* Line Path */}
+                {}
                 <motion.path
                     d={`M ${points}`}
                     fill="none"
-                    stroke="currentColor" // Uses text color (adjust via parent class)
+                    stroke="currentColor"
                     strokeWidth="2"
                     className="text-primary"
                     initial={{ pathLength: 0 }}
@@ -55,7 +54,7 @@ export function WeightGraph({ data }: WeightGraphProps) {
                     transition={{ duration: 1.5, ease: "easeInOut" }}
                 />
 
-                {/* Area under the line (Gradient) */}
+                {}
                 <defs>
                     <linearGradient id="gradientArea" x1="0" x2="0" y1="0" y2="1">
                         <stop offset="0%" stopColor="currentColor" stopOpacity="0.2" className="text-primary" />
@@ -70,7 +69,7 @@ export function WeightGraph({ data }: WeightGraphProps) {
                     transition={{ delay: 0.5, duration: 1 }}
                 />
 
-                {/* Points */}
+                {}
                 {sortedData.map((d, i) => (
                     <motion.circle
                         key={d.id}
@@ -88,7 +87,7 @@ export function WeightGraph({ data }: WeightGraphProps) {
                 ))}
             </svg>
 
-            {/* Labels (Last date and weight) */}
+            {}
             <div className="absolute top-2 right-2 flex flex-col items-end">
                 <span className="text-xl font-bold">{sortedData[sortedData.length - 1].weight} kg</span>
                 <span className="text-xs text-muted-foreground">Último registro</span>

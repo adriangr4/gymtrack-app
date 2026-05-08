@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GymTrack — Redesign</title>
+
+  <!-- Type pairing: Space Grotesk (display/UI) + JetBrains Mono (numerical) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      /* Dark mode (default) */
+      --bg:        oklch(0.16 0.008 250);
+      --bg-2:      oklch(0.20 0.010 250);
+      --card:      oklch(0.22 0.012 250);
+      --card-2:    oklch(0.26 0.014 250);
+      --line:      oklch(0.32 0.012 250);
+      --line-2:    oklch(0.40 0.014 250);
+      --fg:        oklch(0.98 0.005 250);
+      --fg-mute:   oklch(0.72 0.012 250);
+      --fg-dim:    oklch(0.55 0.010 250);
+
+      /* Performance accent — volt/electric lime */
+      --accent:        oklch(0.88 0.20 128);
+      --accent-ink:    oklch(0.22 0.05 128);
+      --accent-soft:   oklch(0.32 0.10 128);
+
+      /* Energy / streak — coral */
+      --energy:        oklch(0.74 0.18 36);
+      --energy-soft:   oklch(0.34 0.10 36);
+
+      /* Cool data — cobalt */
+      --data:          oklch(0.74 0.16 245);
+      --data-soft:     oklch(0.34 0.08 245);
+
+      /* Recovery — magenta */
+      --recovery:      oklch(0.72 0.18 340);
+
+      --r-sm: 12px;
+      --r-md: 18px;
+      --r-lg: 24px;
+      --r-xl: 32px;
+
+      --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    }
+
+    html, body { margin: 0; padding: 0; background: #f0eee9; font-family: var(--font-display); color: var(--fg); -webkit-font-smoothing: antialiased; }
+    *, *::before, *::after { box-sizing: border-box; }
+    button { font-family: inherit; }
+
+    /* Phone screen container — applied inside iOS frames */
+    .gt {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-display);
+      font-feature-settings: "ss01", "ss02";
+      letter-spacing: -0.01em;
+      overflow: hidden;
+      position: relative;
+    }
+    .gt-scroll {
+      width: 100%; height: 100%;
+      overflow-y: auto; overflow-x: hidden;
+      padding-top: 60px; /* leave room for status bar */
+    }
+    .gt-scroll::-webkit-scrollbar { display: none; }
+
+    .num { font-family: var(--font-mono); font-feature-settings: "tnum"; letter-spacing: -0.02em; }
+    .display { font-weight: 700; letter-spacing: -0.03em; }
+    .eyebrow {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--fg-dim);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border-radius: var(--r-lg);
+      border: 1px solid var(--line);
+    }
+    .card-2 {
+      background: var(--card-2);
+      border-radius: var(--r-md);
+      border: 1px solid var(--line);
+    }
+
+    /* Pill */
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px; border-radius: 999px;
+      background: var(--card-2); color: var(--fg-mute);
+      font-size: 11px; font-weight: 500;
+      border: 1px solid var(--line);
+    }
+    .pill.accent { background: color-mix(in oklch, var(--accent) 18%, transparent); color: var(--accent); border-color: color-mix(in oklch, var(--accent) 30%, transparent); }
+    .pill.energy { background: color-mix(in oklch, var(--energy) 18%, transparent); color: var(--energy); border-color: color-mix(in oklch, var(--energy) 30%, transparent); }
+    .pill.data { background: color-mix(in oklch, var(--data) 18%, transparent); color: var(--data); border-color: color-mix(in oklch, var(--data) 30%, transparent); }
+
+    /* Bottom-nav reservation */
+    .nav-spacer { height: 110px; }
+
+    /* Photo placeholder used for all imagery slots */
+    .photo {
+      position: relative; overflow: hidden; isolation: isolate;
+      background:
+        repeating-linear-gradient(135deg,
+          color-mix(in oklch, currentColor 8%, transparent) 0 6px,
+          color-mix(in oklch, currentColor 14%, transparent) 6px 12px);
+      color: var(--fg-mute);
+    }
+    .photo::after {
+      content: attr(data-label);
+      position: absolute; left: 10px; bottom: 8px;
+      font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.55); text-transform: uppercase;
+    }
+    .photo.hero { color: var(--accent); }
+    .photo.warm { color: var(--energy); }
+    .photo.cool { color: var(--data); }
+
+    /* Mesh gradient overlays on photo cards */
+    .mesh::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(120% 80% at 100% 0%, color-mix(in oklch, var(--mesh-a, var(--accent)) 55%, transparent), transparent 60%),
+        radial-gradient(80% 100% at 0% 100%, color-mix(in oklch, var(--mesh-b, var(--energy)) 45%, transparent), transparent 60%),
+        linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.65) 100%);
+    }
+
+    /* Reusable progress arc */
+    .ring-bg { stroke: color-mix(in oklch, var(--fg) 12%, transparent); }
+
+    /* Bottom nav */
+    .bottomnav {
+      position: absolute; left: 14px; right: 14px; bottom: 18px;
+      height: 64px; border-radius: 26px;
+      background: color-mix(in oklch, var(--bg-2) 92%, transparent);
+      backdrop-filter: blur(20px) saturate(140%);
+      -webkit-backdrop-filter: blur(20px) saturate(140%);
+      border: 1px solid var(--line);
+      display: flex; align-items: stretch;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3);
+      z-index: 30;
+    }
+    .bottomnav button {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px; background: transparent; border: 0; padding: 0; cursor: pointer;
+      color: var(--fg-dim); font-size: 10px; font-weight: 500; letter-spacing: 0.02em;
+    }
+    .bottomnav button.active { color: var(--accent); }
+    .bottomnav button.active .nav-icon {
+      background: color-mix(in oklch, var(--accent) 18%, transparent);
+    }
+    .nav-icon {
+      width: 44px; height: 28px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 120ms ease;
+    }
+
+    /* Light mode override */
+    .gt.light {
+      --bg:        oklch(0.985 0.005 250);
+      --bg-2:      oklch(0.965 0.006 250);
+      --card:      #ffffff;
+      --card-2:    oklch(0.97 0.005 250);
+      --line:      oklch(0.90 0.008 250);
+      --line-2:    oklch(0.80 0.010 250);
+      --fg:        oklch(0.18 0.008 250);
+      --fg-mute:   oklch(0.40 0.010 250);
+      --fg-dim:    oklch(0.55 0.010 250);
+      --accent-ink: oklch(0.20 0.05 128);
+    }
+  </style>
+</head>
+<body style="background-color: rgb(255, 255, 255)">
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+  <script type="text/babel" src="shared.jsx"></script>
+  <script type="text/babel" src="screens/home.jsx"></script>
+  <script type="text/babel" src="screens/workout.jsx"></script>
+  <script type="text/babel" src="screens/community.jsx"></script>
+  <script type="text/babel" src="screens/profile.jsx"></script>
+  <script type="text/babel" src="screens/library.jsx"></script>
+  <script type="text/babel" src="screens/diet.jsx"></script>
+  <script type="text/babel" src="screens/progress.jsx"></script>
+  <script type="text/babel" src="screens/auth.jsx"></script>
+  <script type="text/babel" src="app.jsx"></script>
+</body>
+</html>

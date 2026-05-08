@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Plus, Trash2, Save } from 'lucide-react';
 import api from '../../api/client';
+import { clearDietsCache } from '../../services/diet';
 
 import { useDebounce } from '../../hooks/useDebounce';
 
@@ -24,7 +25,6 @@ export function DietCreatorPage() {
         { isOpen: false, dietId: '', dietName: '' }
     );
 
-    // Diet State: Day -> MealType -> FoodList
     const [weeklyMeals, setWeeklyMeals] = useState<any>({
         Monday: { breakfast: [], lunch: [], dinner: [], snack: [] },
         Tuesday: { breakfast: [], lunch: [], dinner: [], snack: [] },
@@ -45,7 +45,6 @@ export function DietCreatorPage() {
         { id: 'Sunday', label: 'D' },
     ];
 
-    // Auto-search effect
     useEffect(() => {
         const search = async () => {
             if (!debouncedSearchTerm || debouncedSearchTerm.length < 2) {
@@ -56,11 +55,10 @@ export function DietCreatorPage() {
 
             setIsSearching(true);
             try {
-                const res = await api.get(`/diets/search?q=${encodeURIComponent(debouncedSearchTerm)}`);
+                const res = await api.get(`/diets/search?q=${encodeURIComponent(debouncedSearchTerm)}&page=1`);
                 setSearchResults(res.data);
             } catch (error) {
                 console.error("Error searching food:", error);
-                alert("La base de datos de alimentos (OpenFoodFacts) está tardando demasiado en responder o está caída. Inténtalo más tarde.");
                 setSearchResults([]);
             } finally {
                 setIsSearching(false);
@@ -86,7 +84,6 @@ export function DietCreatorPage() {
         }));
     };
 
-
     const removeFoodFromMeal = (_mealId: string, foodIndex: number) => {
         setWeeklyMeals((prev: any) => ({
             ...prev,
@@ -98,11 +95,7 @@ export function DietCreatorPage() {
     };
 
     const calculateTotalCalories = () => {
-        // Check if weekly_plan exists and calculate average or total
-        // For now, let's sum ALL days average? Or just active day?
-        // User asked for "weekly diet", so usually target is daily average.
 
-        // Let's calculate average daily calories
         let totalDays = 0;
         let grandTotal = 0;
 
@@ -119,17 +112,14 @@ export function DietCreatorPage() {
             }
         });
 
-        // If no days have food, return 0
         if (totalDays === 0) return 0;
 
-        // Return average
         return Math.floor(grandTotal / totalDays);
     };
 
     const handleSaveDiet = async () => {
         if (!name) return alert("Ponle nombre a tu dieta!");
 
-        // Transform state to API schema
         const weeklyPlanPayload = Object.entries(weeklyMeals).map(([day, mealsObj]: [string, any]) => {
             const dayMeals = Object.entries(mealsObj).map(([key, foods]: [string, any]) => ({
                 name: key,
@@ -143,11 +133,11 @@ export function DietCreatorPage() {
         }).filter(d => d.meals.length > 0);
 
         const randomImages = [
-            'https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=1000&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1547592180-85f173990554?q=80&w=1000&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?q=80&w=1000&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1000&auto=format&fit=crop',
-            'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?q=80&w=1000&auto=format&fit=crop'
+            'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=600&h=400&fit=crop',
+            'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&h=400&fit=crop',
+            'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=400&fit=crop',
+            'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=400&fit=crop',
+            'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&h=400&fit=crop',
         ];
         const randomImage = randomImages[Math.floor(Math.random() * randomImages.length)];
 
@@ -160,6 +150,7 @@ export function DietCreatorPage() {
                 image_url: randomImage
             });
             const created = response.data;
+            clearDietsCache();
             if (created?.id) {
                 setShareModal({ isOpen: true, dietId: created.id, dietName: name });
             } else {
@@ -183,7 +174,7 @@ export function DietCreatorPage() {
                     navigate('/diet');
                 }}
             />
-            {/* Header */}
+            {}
             <div className="flex items-center gap-4 mb-6">
                 <button onClick={() => navigate(-1)} className="p-2 bg-card rounded-full hover:bg-muted transition-colors">
                     <ArrowLeft className="size-6" />
@@ -216,7 +207,7 @@ export function DietCreatorPage() {
                 onApply={(cals) => setTargetCalories(cals)}
             />
 
-            {/* Day Selector */}
+            {}
             <div className="flex justify-between mb-6 bg-card/30 p-1 rounded-2xl">
                 {days.map(day => (
                     <button
@@ -232,7 +223,7 @@ export function DietCreatorPage() {
                 ))}
             </div>
 
-            {/* Meal Tabs */}
+            {}
             <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2">
                 {mealTabs.map(tab => (
                     <button
@@ -245,7 +236,7 @@ export function DietCreatorPage() {
                 ))}
             </div>
 
-            {/* Search Bar */}
+            {}
             <div className="relative mb-6">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
                 <input
@@ -262,7 +253,7 @@ export function DietCreatorPage() {
                 )}
             </div>
 
-            {/* Search Results */}
+            {}
             {searchResults.length > 0 && (
                 <div className="mb-8 space-y-2 max-h-60 overflow-y-auto bg-card/50 rounded-2xl p-2 border border-border">
                     <p className="text-xs font-bold text-muted-foreground px-2 mb-1">Resultados de búsqueda</p>
@@ -287,7 +278,7 @@ export function DietCreatorPage() {
                 </div>
             )}
 
-            {/* Current Meal Foods */}
+            {}
             <div className="space-y-4 mb-24">
                 <h3 className="font-bold text-lg capitalize flex items-center gap-2">
                     {mealTabs.find(t => t.id === activeMeal)?.label}
@@ -327,7 +318,7 @@ export function DietCreatorPage() {
                 )}
             </div>
 
-            {/* Floating Save Button */}
+            {}
             <div className="fixed bottom-6 left-0 right-0 p-6 pt-0 bg-linear-to-t from-background via-background to-transparent md:static md:bg-none">
                 <button
                     onClick={handleSaveDiet}

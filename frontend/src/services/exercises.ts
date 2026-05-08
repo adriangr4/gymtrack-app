@@ -4,8 +4,8 @@ export interface Exercise {
     id: string;
     name: string;
     description?: string;
-    muscle_group?: string; // grupo_muscular in JSON
-    type?: string; // tipo in JSON
+    muscle_group?: string;
+    type?: string;
     image_url?: string;
     video_url?: string;
 }

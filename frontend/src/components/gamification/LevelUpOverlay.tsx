@@ -7,10 +7,10 @@ interface LevelUpOverlayProps {
     onClose: () => void;
     xpGained: number;
     currentLevel: number;
-    initialXp: number; // XP before workout
-    finalXp: number;   // XP after workout
-    nextLevelXp: number; // XP needed for next level (total)
-    prevLevelXp: number; // XP needed for current level (total)
+    initialXp: number;
+    finalXp: number;
+    nextLevelXp: number;
+    prevLevelXp: number;
 }
 
 export function LevelUpOverlay({
@@ -26,25 +26,10 @@ export function LevelUpOverlay({
     const [showLevelUp, setShowLevelUp] = useState(false);
     const [displayedXp, setDisplayedXp] = useState(initialXp);
 
-    // Calculate progress percentages
-    // Level N range is [prevLevelXp, nextLevelXp]
     const levelRange = nextLevelXp - prevLevelXp;
 
-    // Guard against division by zero if level 1 starts at 0 and ends at 100
     const safeRange = levelRange > 0 ? levelRange : 100;
 
-    // Start progress (before workout)
-    // If we leveled up from previous level, initialXp was in previous range.
-    // For simplicity, let's assume valid range logic or clamp.
-    // Ideally, if we leveled up, start should be 0 (relative to new level)? 
-    // No, better visual: Bar fills from old % to 100%, then new bar fills?
-    // MVP: Just show current state. 
-    // If we just entered this level, initialXp might be < prevLevelXp? 
-    // Wait, initialXp is raw total.
-
-    // If we JUST leveled up, our initial XP was below prevLevelXp of the NEW level.
-    // So startProgress would be negative.
-    // In that case, start at 0.
     const startProgress = Math.max(0, Math.min(100, ((initialXp - prevLevelXp) / safeRange) * 100));
 
     const leveledUp = finalXp >= nextLevelXp;
@@ -54,7 +39,7 @@ export function LevelUpOverlay({
 
     useEffect(() => {
         if (isVisible) {
-            // Animate XP counter
+
             const duration = 2000;
             const startTime = Date.now();
 
@@ -67,9 +52,7 @@ export function LevelUpOverlay({
                 if (progress < 1) {
                     requestAnimationFrame(animate);
                 } else {
-                    // Check level up triggering
-                    // If we are at 100% or overflow, show level up? 
-                    // Actually passing explicit 'leveledUp' prop might be better but checking range is ok
+
                     if (finalXp >= nextLevelXp) {
                         setTimeout(() => setShowLevelUp(true), 500);
                     }
@@ -88,7 +71,7 @@ export function LevelUpOverlay({
                     exit={{ opacity: 0 }}
                     className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white"
                 >
-                    {/* Background Particles/Glow */}
+                    {}
                     <div className="absolute inset-0 overflow-hidden">
                         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/20 rounded-full blur-[100px] animate-pulse" />
                         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-secondary/20 rounded-full blur-[100px] animate-pulse delay-700" />
@@ -99,7 +82,7 @@ export function LevelUpOverlay({
                         animate={{ scale: 1, y: 0 }}
                         className="relative z-10 w-full max-w-md text-center space-y-8"
                     >
-                        {/* Header */}
+                        {}
                         <div className="space-y-2">
                             <motion.div
                                 initial={{ opacity: 0, y: -20 }}
@@ -115,9 +98,9 @@ export function LevelUpOverlay({
                             </h2>
                         </div>
 
-                        {/* XP Bar */}
+                        {}
                         <div className="bg-card border border-border rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-                            {/* Level Badge */}
+                            {}
                             <div className="flex justify-between items-end mb-4">
                                 <div className="flex flex-col items-start">
                                     <span className="text-xs text-muted-foreground uppercase font-bold">Nivel Actual</span>
@@ -129,9 +112,9 @@ export function LevelUpOverlay({
                                 </div>
                             </div>
 
-                            {/* Progress Bar Container */}
+                            {}
                             <div className="h-6 bg-muted rounded-full overflow-hidden relative border border-white/5">
-                                {/* Fill Animation */}
+                                {}
                                 <motion.div
                                     className="absolute top-0 left-0 h-full bg-linear-to-r from-primary to-blue-400"
                                     initial={{ width: `${startProgress}%` }}
@@ -148,7 +131,7 @@ export function LevelUpOverlay({
                                 <span>{nextLevelXp} XP Meta</span>
                             </div>
 
-                            {/* Level Up Notification */}
+                            {}
                             <AnimatePresence>
                                 {showLevelUp && (
                                     <motion.div
@@ -177,7 +160,7 @@ export function LevelUpOverlay({
                             </AnimatePresence>
                         </div>
 
-                        {/* Continue Button */}
+                        {}
                         <motion.button
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}

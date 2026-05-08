@@ -18,7 +18,7 @@ export function Sidebar() {
                 <div className="bg-primary p-2 rounded-lg">
                     <Dumbbell className="h-6 w-6 text-primary-foreground" />
                 </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                <span className="text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
                     GymTrack
                 </span>
             </div>

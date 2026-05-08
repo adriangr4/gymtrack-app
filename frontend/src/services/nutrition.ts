@@ -1,5 +1,3 @@
-// New service for nutrition caching
-
 const NUTRITION_CACHE_KEY = 'gymtrack_nutrition_today';
 
 export const getNutritionCache = (): any | null => {

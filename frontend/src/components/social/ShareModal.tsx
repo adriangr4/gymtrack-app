@@ -48,7 +48,7 @@ export function ShareModal({ isOpen, contentType, contentId, contentName, onClos
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className="bg-card w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-border slide-in-from-bottom-4 animate-in duration-300">
 
-                {/* Header */}
+                {}
                 <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2">
                         <div className="p-2 bg-primary/10 rounded-xl">
@@ -64,7 +64,7 @@ export function ShareModal({ isOpen, contentType, contentId, contentName, onClos
                     </button>
                 </div>
 
-                {/* Content preview */}
+                {}
                 <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-2xl mb-6 border border-border/50">
                     <div className="p-3 bg-primary/10 rounded-xl">
                         <Icon className="size-6 text-primary" />
@@ -79,12 +79,12 @@ export function ShareModal({ isOpen, contentType, contentId, contentName, onClos
                     Tu {label.toLowerCase()} será visible para toda la comunidad. Otros usuarios podrán valorarla e importarla a su biblioteca.
                 </p>
 
-                {/* Status messages */}
+                {}
                 {status === 'error' && (
                     <p className="text-sm text-red-500 text-center mb-4 bg-red-500/10 rounded-xl px-3 py-2">{errorMsg}</p>
                 )}
 
-                {/* Actions */}
+                {}
                 {status === 'success' ? (
                     <div className="flex items-center justify-center gap-2 py-3 text-green-500 font-bold">
                         <CheckCircle2 className="size-5" />

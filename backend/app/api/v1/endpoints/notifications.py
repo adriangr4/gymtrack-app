@@ -38,11 +38,11 @@ def mark_read(
     doc = doc_ref.get()
     if not doc.exists:
         raise HTTPException(status_code=404, detail="Notification not found")
-    
+
     data = doc.to_dict()
     if data.get("user_id") != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     doc_ref.update({"read": True})
     data["read"] = True
     return Notification(id=doc.id, **data)

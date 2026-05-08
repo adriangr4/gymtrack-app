@@ -3,16 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Play, Timer, Flame, Dumbbell, CheckCircle2, RotateCw, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getRoutine, type Routine } from '../../services/routines';
-import { logWorkoutSession } from '../../services/tracking';
+import { logWorkoutSession, clearHistoryCache } from '../../services/tracking';
 import { useAuth } from '../../context/AuthContext';
 import { LevelUpOverlay } from '../../components/gamification/LevelUpOverlay';
+import { StreakFireOverlay } from '../../components/gamification/StreakFireOverlay';
 
 export function WorkoutSessionPage() {
     const { routineId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
 
-    // --- STATE ---
     const [routine, setRoutine] = useState<Routine | null>(null);
     const [loading, setLoading] = useState(true);
     const [isActive, setIsActive] = useState(false);
@@ -21,42 +21,33 @@ export function WorkoutSessionPage() {
 
     const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
     const [currentSetIndex, setCurrentSetIndex] = useState(0);
-    const [completedSets, setCompletedSets] = useState<Record<string, boolean>>({}); // key: "exIndex-setIndex"
+    const [completedSets, setCompletedSets] = useState<Record<string, boolean>>({});
 
-    // Detailed Set Logging State: key: "exIndex-setIndex" -> { weight: number, reps: number }
     const [setDetails, setSetDetails] = useState<Record<string, { weight: number, reps: number }>>({});
 
     const [isFinished, setIsFinished] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [streakDays, setStreakDays] = useState(0);
+    const [showStreakFire, setShowStreakFire] = useState(false);
 
-    // Survey State
     const [rating, setRating] = useState(5);
     const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
 
-    // Day Selection State
     const [selectedDay, setSelectedDay] = useState<string | null>(null);
     const [availableDays, setAvailableDays] = useState<string[]>([]);
 
-    // --- EFFECTS ---
-
-    // --- EFFECTS ---
-
-    // Fetch Routine
     useEffect(() => {
         if (routineId) {
             getRoutine(routineId)
                 .then(data => {
                     setRoutine(data);
 
-                    // Extract unique days from flat exercises list
-                    // @ts-ignore
                     const exercises = data.exercises || [];
                     const uniqueDays = Array.from(new Set(exercises.map((ex: any) => ex.day_of_week))).sort((a: any, b: any) => a - b);
                     const days = uniqueDays.map(d => `Día ${d}`);
 
                     setAvailableDays(days);
 
-                    // If only 1 day, auto select
                     if (days.length === 1) {
                         setSelectedDay(days[0]);
                     }
@@ -66,11 +57,9 @@ export function WorkoutSessionPage() {
         }
     }, [routineId]);
 
-    // Initialize Set Details when Day is Selected
     useEffect(() => {
         if (routine && selectedDay !== null) {
-            // Filter by day
-            // @ts-ignore
+
             const exercises = routine.exercises || [];
             const dayNum = parseInt(selectedDay.split(' ')[1]);
             const sessionExercises = exercises
@@ -93,27 +82,23 @@ export function WorkoutSessionPage() {
             });
             setSetDetails(details);
 
-            // Reset indexes
             setCurrentExerciseIndex(0);
             setCurrentSetIndex(0);
             setCompletedSets({});
         }
     }, [routine, selectedDay]);
 
-    // Timer Logic
     useEffect(() => {
         let interval: any;
         if (isActive && !isFinished) {
             interval = setInterval(() => {
                 setElapsedSeconds(s => s + 1);
-                // Simulate calories: ~0.15 kcal per second (approx 540 kcal/hour)
+
                 setCaloriesBurned(c => c + 0.15);
             }, 1000);
         }
         return () => clearInterval(interval);
     }, [isActive, isFinished]);
-
-    // --- HELPERS ---
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -133,10 +118,9 @@ export function WorkoutSessionPage() {
         }));
     };
 
-    // Filter exercises for selected day
     const getSessionExercises = () => {
         if (!routine || !selectedDay) return [];
-        // @ts-ignore
+
         const exercises = routine.exercises || [];
         const dayNum = parseInt(selectedDay.split(' ')[1]);
         return exercises
@@ -186,7 +170,6 @@ export function WorkoutSessionPage() {
         if (!routine) return;
         setIsSubmitting(true);
 
-        // Prepare detailed logs
         const logs = Object.entries(setDetails).map(([key, details]) => {
             const [exIdx, setIdx] = key.split('-').map(Number);
             const exercise = sessionExercises[exIdx];
@@ -202,7 +185,7 @@ export function WorkoutSessionPage() {
         }).filter((log): log is { exercise_id: string; set_number: number; reps: number; weight_kg: number; notes: string; } => log !== null);
 
         try {
-            // 1. Submit Log & Get Updated Stats Directly
+
             const response = await logWorkoutSession({
                 routine_id: routine.id || "",
                 duration_seconds: elapsedSeconds,
@@ -213,41 +196,43 @@ export function WorkoutSessionPage() {
                 logs: logs
             });
 
-            // 2. Use Response Data for Overlay
-            // Backend returns: { workout, xp_gained, new_total_xp, new_level, level_up, prev_level_xp, next_level_xp }
-            const data = response; // Typed as any in service but we know structure
+            const data = response;
+            clearHistoryCache();
 
             setXpData({
                 xpGained: data.xp_gained,
-                currentLevel: data.new_level, // Use the new level directly as per plan
+                currentLevel: data.new_level,
                 initialXp: data.new_total_xp - data.xp_gained,
                 finalXp: data.new_total_xp,
                 nextLevelXp: data.next_level_xp,
                 prevLevelXp: data.prev_level_xp
             });
 
-            if (data.level_up) {
-                // Maybe trigger a special confetti or sound here if not handled by overlay
-            }
+            // Fetch updated streak from dashboard
+            try {
+                const { getDashboardStats } = await import('../../services/user');
+                const dashStats = await getDashboardStats();
+                if (dashStats.streak_days >= 1) {
+                    setStreakDays(dashStats.streak_days);
+                    setShowStreakFire(true);
+                }
+            } catch {}
 
             setShowLevelUp(true);
-            setIsSubmitting(false); // STOP LOADING STATE!
+            setIsSubmitting(false);
 
         } catch (error: any) {
             console.error("Failed to save workout", error);
-            // Show explicit error to user
+
             const msg = error.response?.data?.detail || error.message || "Error desconocido";
             alert(`Error al guardar: ${typeof msg === 'object' ? JSON.stringify(msg) : msg}`);
             setIsSubmitting(false);
         }
     };
 
-    // --- RENDER ---
-
     if (loading) return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
     if (!routine) return <div className="min-h-screen flex items-center justify-center">Rutina no encontrada</div>;
 
-    // 1. Day Selection View
     if (!isActive && !isFinished && availableDays.length > 1 && selectedDay === null) {
         return (
             <div className="min-h-screen bg-background p-6 flex flex-col justify-center gap-6">
@@ -270,7 +255,6 @@ export function WorkoutSessionPage() {
                             <div>
                                 <h3 className="text-xl font-bold">{day}</h3>
                                 <p className="text-sm text-muted-foreground">
-                                    {/* @ts-ignore */}
                                     {(routine.exercises || []).filter((e: any) => e.day_of_week === parseInt(day.split(' ')[1])).length} Ejercicios
                                 </p>
                             </div>
@@ -282,10 +266,8 @@ export function WorkoutSessionPage() {
         )
     }
 
-    // Ensure current index is valid
     if (sessionExercises.length === 0) return <div>No exercises for this day</div>;
 
-    // 2. Finished View (Survey)
     if (isFinished) {
         return (
             <div className="min-h-screen bg-background p-6 flex flex-col items-center justify-center animate-in zoom-in-95 duration-300">
@@ -348,7 +330,7 @@ export function WorkoutSessionPage() {
                     {isSubmitting ? "Guardando..." : "Guardar en Historial"}
                 </button>
 
-                {/* Level Up Overlay - Correctly placed in Summary View */}
+                {}
                 {xpData && (
                     <LevelUpOverlay
                         isVisible={showLevelUp}
@@ -361,14 +343,17 @@ export function WorkoutSessionPage() {
                         prevLevelXp={xpData.prevLevelXp}
                     />
                 )}
+
+                {/* Streak fire overlay */}
+                {showStreakFire && !showLevelUp && (
+                    <StreakFireOverlay days={streakDays} onClose={() => { setShowStreakFire(false); setShowLevelUp(true); }} />
+                )}
             </div>
         )
     }
 
-    // 3. Initial/Start View (if not active and Day Selected) or Active View
-    // If not active, show "Start" screen
     if (!isActive) {
-        // Simple start screen for the selected day
+
         return (
             <div className="min-h-screen bg-background p-6 flex flex-col justify-center gap-6">
                 <button onClick={() => navigate(-1)} className="absolute top-4 left-4 p-2 hover:bg-muted rounded-full">
@@ -377,7 +362,7 @@ export function WorkoutSessionPage() {
 
                 <div className="text-center relative">
                     <div className="aspect-video w-full rounded-3xl bg-muted relative overflow-hidden flex items-center justify-center border border-border shadow-inner mb-6">
-                        {/* Placeholder or Routine Image */}
+                        {}
                         <Dumbbell className="size-20 text-muted-foreground/20" />
                     </div>
                     <h1 className="text-3xl font-black mb-2">{routine.name}</h1>
@@ -392,12 +377,11 @@ export function WorkoutSessionPage() {
         )
     }
 
-    // 4. Active Workout View
     const setsLeft = (currentExercise.target_sets || currentExercise.series || 3) - currentSetIndex;
 
     return (
         <div className="min-h-screen bg-background flex flex-col pb-safe overflow-hidden">
-            {/* Top Bar */}
+            {}
             <div className="p-4 flex items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-10">
                 <button onClick={() => navigate(-1)} className="p-2 hover:bg-muted rounded-full">
                     <ChevronLeft className="size-6" />
@@ -409,7 +393,7 @@ export function WorkoutSessionPage() {
                 <div className="p-2 opacity-0"><ChevronLeft className="size-6" /></div>
             </div>
 
-            {/* Stats Bar */}
+            {}
             <div className="grid grid-cols-3 border-b border-border/50">
                 <div className="p-3 flex flex-col items-center border-r border-border/50">
                     <Flame className="size-4 text-orange-500 mb-1" />
@@ -428,7 +412,7 @@ export function WorkoutSessionPage() {
                 </div>
             </div>
 
-            {/* Current Exercise Content */}
+            {}
             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
                 <AnimatePresence mode="wait">
                     <motion.div
@@ -439,21 +423,21 @@ export function WorkoutSessionPage() {
                         transition={{ duration: 0.3 }}
                         className="flex flex-col gap-6"
                     >
-                        {/* Dynamic Image & Title */}
+                        {}
                         {(() => {
-                            // @ts-ignore
+
                             const exName = currentExercise.exercise?.name || currentExercise.name || "Ejercicio";
 
                             const getExerciseImage = (name: string) => {
                                 const n = name.toLowerCase();
-                                if (n.includes('pecho') || n.includes('press') || n.includes('aperturas') || n.includes('push') || n.includes('fondos') || n.includes('pectoral')) return 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=1000&auto=format&fit=crop';
-                                if (n.includes('espalda') || n.includes('remo') || n.includes('jalón') || n.includes('pull') || n.includes('dominadas') || n.includes('dorsal')) return 'https://images.unsplash.com/photo-1605296867304-46d5465a13f1?q=80&w=1000&auto=format&fit=crop';
-                                if (n.includes('pierna') || n.includes('sentadilla') || n.includes('prensa') || n.includes('zancada') || n.includes('extension') || n.includes('curl femoral') || n.includes('gemelos')) return 'https://images.unsplash.com/photo-1434608519344-49d77a699dad?q=80&w=1000&auto=format&fit=crop';
-                                if (n.includes('bíceps') || n.includes('curl')) return 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1000&auto=format&fit=crop';
-                                if (n.includes('tríceps') || n.includes('francés') || n.includes('polea') || n.includes('fondos')) return 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1000&auto=format&fit=crop';
-                                if (n.includes('hombro') || n.includes('militar') || n.includes('elevaciones') || n.includes('pájaro') || n.includes('deltoides')) return 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=1000&auto=format&fit=crop';
-                                if (n.includes('abs') || n.includes('abdominal') || n.includes('plancha') || n.includes('crunch')) return 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=1000&auto=format&fit=crop';
-                                return 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1000&auto=format&fit=crop';
+                                if (n.includes('pecho') || n.includes('press') || n.includes('aperturas') || n.includes('push') || n.includes('fondos') || n.includes('pectoral')) return 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&h=400&fit=crop';
+                                if (n.includes('espalda') || n.includes('remo') || n.includes('jalón') || n.includes('pull') || n.includes('dominadas') || n.includes('dorsal')) return 'https://images.unsplash.com/photo-1603287681836-b174ce5074c2?w=600&h=400&fit=crop';
+                                if (n.includes('pierna') || n.includes('sentadilla') || n.includes('prensa') || n.includes('zancada') || n.includes('extension') || n.includes('curl femoral') || n.includes('gemelos')) return 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=600&h=400&fit=crop';
+                                if (n.includes('bíceps') || n.includes('curl')) return 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=600&h=400&fit=crop';
+                                if (n.includes('tríceps') || n.includes('francés') || n.includes('polea') || n.includes('fondos')) return 'https://images.unsplash.com/photo-1530822847156-5df684ec5ee1?w=600&h=400&fit=crop';
+                                if (n.includes('hombro') || n.includes('militar') || n.includes('elevaciones') || n.includes('pájaro') || n.includes('deltoides')) return 'https://images.unsplash.com/photo-1532029837206-abbe2b7620e3?w=600&h=400&fit=crop';
+                                if (n.includes('abs') || n.includes('abdominal') || n.includes('plancha') || n.includes('crunch')) return 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&h=400&fit=crop';
+                                return 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&h=400&fit=crop';
                             };
                             const bgImage = getExerciseImage(exName);
 
@@ -481,14 +465,14 @@ export function WorkoutSessionPage() {
                                     <div>
                                         <h1 className="text-3xl font-black leading-tight mb-2">{exName}</h1>
                                         <div className="flex flex-wrap gap-2 text-sm">
-                                            {/* Muscle group is not in RoutineExercise, might need to fetch or ignore */}
+                                            {}
                                             <span className="bg-primary/20 text-primary px-2 py-1 rounded-md font-bold">Ejercicio</span>
                                             <span className="bg-muted px-2 py-1 rounded-md text-muted-foreground">{currentExercise.target_sets || currentExercise.series || 3} Series</span>
                                             <span className="bg-muted px-2 py-1 rounded-md text-muted-foreground">{currentExercise.target_reps_min ? `${currentExercise.target_reps_min}-${currentExercise.target_reps_max}` : (currentExercise.reps || "10")} Reps</span>
                                         </div>
                                     </div>
 
-                                    {/* Sets Checklist with Inputs */}
+                                    {}
                                     <div className="space-y-3">
                                         {(() => {
                                             const seriesCount = currentExercise.target_sets || currentExercise.series || 3;
@@ -559,7 +543,7 @@ export function WorkoutSessionPage() {
                 </AnimatePresence>
             </div>
 
-            {/* Controls */}
+            {}
             <div className="p-4 bg-background border-t border-border mt-auto">
                 <button
                     onClick={handleCompleteSet}
@@ -569,7 +553,7 @@ export function WorkoutSessionPage() {
                     <ChevronLeft className="rotate-180 size-5" />
                 </button>
             </div>
-            {/* Level Up Overlay */}
+            {}
             {xpData && (
                 <LevelUpOverlay
                     isVisible={showLevelUp}
@@ -581,6 +565,9 @@ export function WorkoutSessionPage() {
                     nextLevelXp={xpData.nextLevelXp}
                     prevLevelXp={xpData.prevLevelXp}
                 />
+            )}
+            {showStreakFire && !showLevelUp && (
+                <StreakFireOverlay days={streakDays} onClose={() => { setShowStreakFire(false); setShowLevelUp(true); }} />
             )}
         </div>
     );

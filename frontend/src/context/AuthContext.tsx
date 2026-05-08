@@ -8,7 +8,7 @@ interface User {
     profilePicture?: string;
     daily_calorie_goal?: number;
     current_routine_id?: string;
-    current_diet_id?: string; // Added field
+    current_diet_id?: string;
     is_admin?: boolean;
 }
 
@@ -25,7 +25,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    // Initialize state from localStorage
+
     const [user, setUser] = useState<User | null>(() => {
         const savedUser = localStorage.getItem('user');
         return savedUser ? JSON.parse(savedUser) : null;
@@ -34,14 +34,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        // If we have a token but no user? usually we would fetch /me here.
-        // For now assuming we store both on login.
+        if (!token) return;
+        setIsLoading(true);
+        api.get('/users/me')
+            .then((res) => {
+                const freshUser = res.data;
+                const normalizedUser: User = {
+                    id: String(freshUser.id),
+                    username: freshUser.username,
+                    email: freshUser.email,
+                    profilePicture: freshUser.profile_picture || freshUser.profilePicture || undefined,
+                    current_routine_id: freshUser.current_routine_id || undefined,
+                    current_diet_id: freshUser.current_diet_id || undefined,
+                    is_admin: freshUser.is_admin || false,
+                    daily_calorie_goal: freshUser.daily_calorie_goal || undefined
+                };
+                setUser(normalizedUser);
+                localStorage.setItem('user', JSON.stringify(normalizedUser));
+            })
+            .catch((err) => {
+                if (err.response?.status === 401) {
+                    console.warn('Token expirado o inválido. Cerrando sesión.');
+                    logout();
+                }
+            })
+            .finally(() => setIsLoading(false));
     }, []);
 
     const login = (newToken: string, newUser: any) => {
-        // Normalize user data (snake_case to camelCase if needed)
+
         const normalizedUser: User = {
-            id: String(newUser.id), // Ensure it's a string
+            id: String(newUser.id),
             username: newUser.username,
             email: newUser.email,
             profilePicture: newUser.profile_picture || newUser.profilePicture || undefined,
@@ -57,13 +80,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = () => {
-        // Clear all gymtrack related cache keys including the ones for diets and routines
+
         Object.keys(localStorage).forEach(key => {
             if (key.startsWith('gymtrack_') || key === 'token' || key === 'user') {
                 localStorage.removeItem(key);
             }
         });
-        
+
         setToken(null);
         setUser(null);
     };
@@ -71,13 +94,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updateUser = async (updates: Partial<User>) => {
         if (!user) return;
 
-        // Optimistic Update
         const updatedUser = { ...user, ...updates };
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser);
 
         try {
-            // Map camelCase to snake_case for Backend
+
             const backendUpdates: any = { ...updates };
             if (updates.profilePicture) {
                 backendUpdates.profile_picture = updates.profilePicture;

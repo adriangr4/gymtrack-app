@@ -6,18 +6,16 @@ from typing import List, Any
 from app.api.deps import get_current_user
 from app.schemas.user import User
 from app.schemas.diet import DietPlan, DietPlanCreate, FoodItem
-from app.core.config import settings
 import uuid
 from datetime import datetime
 
 router = APIRouter()
 
-# Firestore collection reference
 def get_diets_ref():
     return firebase_firestore.client().collection('diets')
 
 def normalize(text: str) -> str:
-    """Lowercase and remove accents for flexible search."""
+
     nfkd = unicodedata.normalize('NFD', text.lower())
     return ''.join(c for c in nfkd if not unicodedata.combining(c))
 
@@ -27,97 +25,182 @@ async def search_food(
     page: int = 1
 ):
     """
-    Search for food in the local Firestore 'foods' database.
-    Falls back to a generic item if nothing is found.
+    Busca alimentos usando APIs externas gratuitas.
+    Prioridad: 1) Open Food Facts  2) USDA FoodData Central  3) Firestore local
     """
-    def _search():
+    import requests as req
+
+    # --- 1) Intentar Open Food Facts (tiene marcas europeas/españolas) ---
+    try:
+        off_url = "https://world.openfoodfacts.org/cgi/search.pl"
+        off_params = {
+            "search_terms": q,
+            "search_simple": 1,
+            "action": "process",
+            "json": 1,
+            "page_size": 20,
+            "page": page,
+            "fields": "product_name,brands,nutriments,image_front_small_url,code",
+        }
+        off_resp = req.get(off_url, params=off_params, timeout=5, headers={
+            "User-Agent": "GymTrack/1.0 (contact@gymtrack.app)"
+        })
+
+        if off_resp.status_code == 200:
+            data = off_resp.json()
+            products = data.get("products", [])
+            if products:
+                results = []
+                for p in products:
+                    name = p.get("product_name", "").strip()
+                    if not name:
+                        continue
+                    nuts = p.get("nutriments", {})
+                    results.append(FoodItem(
+                        name=name,
+                        brand=p.get("brands", ""),
+                        calories=round(nuts.get("energy-kcal_100g", nuts.get("energy-kcal", 0)) or 0, 1),
+                        protein=round(nuts.get("proteins_100g", 0) or 0, 1),
+                        carbs=round(nuts.get("carbohydrates_100g", 0) or 0, 1),
+                        fat=round(nuts.get("fat_100g", 0) or 0, 1),
+                        image_url=p.get("image_front_small_url", ""),
+                        barcode=p.get("code", ""),
+                        quantity=100,
+                        serving_size="100g"
+                    ))
+                if results:
+                    return results
+    except Exception as e:
+        print(f"WARN: Open Food Facts API failed: {e}", flush=True)
+
+    # --- 2) Fallback: USDA FoodData Central (siempre disponible, sin API key) ---
+    try:
+        usda_url = "https://api.nal.usda.gov/fdc/v1/foods/search"
+        usda_params = {
+            "query": q,
+            "pageSize": 20,
+            "pageNumber": page,
+            "api_key": "DEMO_KEY",
+        }
+        usda_resp = req.get(usda_url, params=usda_params, timeout=8)
+
+        if usda_resp.status_code == 200:
+            data = usda_resp.json()
+            foods = data.get("foods", [])
+            if foods:
+                results = []
+                for f in foods:
+                    nutrients = {n["nutrientName"]: n.get("value", 0) for n in f.get("foodNutrients", [])}
+                    results.append(FoodItem(
+                        name=f.get("description", "Alimento").title(),
+                        brand=f.get("brandName", f.get("brandOwner", "")),
+                        calories=round(nutrients.get("Energy", 0) or 0, 1),
+                        protein=round(nutrients.get("Protein", 0) or 0, 1),
+                        carbs=round(nutrients.get("Carbohydrate, by difference", 0) or 0, 1),
+                        fat=round(nutrients.get("Total lipid (fat)", 0) or 0, 1),
+                        image_url="",
+                        barcode=f.get("gtinUpc", ""),
+                        quantity=100,
+                        serving_size="100g"
+                    ))
+                if results:
+                    return results
+    except Exception as e:
+        print(f"WARN: USDA API failed: {e}", flush=True)
+
+    # --- 3) Fallback final: Firestore local ---
+    def _search_local():
         db = firebase_firestore.client()
         q_normalized = normalize(q)
-        
-        # Firestore doesn't support full-text search, so we:
-        # 1. Try exact prefix match on search_name field
-        # 2. Also fetch all and filter in-memory (collection is small ~100-200 items)
         results = []
-        
         all_foods = db.collection('foods').stream()
         for doc in all_foods:
             data = doc.to_dict()
             food_name_norm = normalize(data.get('name', ''))
-            # Match if query appears anywhere in the food name
             if q_normalized in food_name_norm:
                 results.append(data)
-        
-        # Sort by relevance: exact starts-with first, then contains
         results.sort(key=lambda x: (0 if normalize(x['name']).startswith(q_normalized) else 1, x['name']))
-        
-        # Pagination
-        page_size = 20
-        start = (page - 1) * page_size
-        return results[start:start + page_size]
-    
-    foods = await run_in_threadpool(_search)
-    
-    if not foods:
-        # Return a single generic item so UI doesn't show empty
-        return [FoodItem(
-            name=f"{q.capitalize()} (Genérico)",
-            brand="Sin marca",
-            calories=100,
-            protein=5,
-            carbs=10,
-            fat=2,
-            image_url="",
-            barcode="",
-            quantity=100,
-            serving_size="100g"
-        )]
-    
-    return [
-        FoodItem(
-            name=f.get('name', 'Alimento'),
-            brand=f.get('category', ''),
-            calories=f.get('calories', 0),
-            protein=f.get('protein', 0),
-            carbs=f.get('carbs', 0),
-            fat=f.get('fat', 0),
-            image_url=f.get('image_url', ''),
-            barcode=f.get('id', ''),
-            quantity=f.get('quantity', 100),
-            serving_size=f.get('serving_size', '100g')
-        )
-        for f in foods
-    ]
+        return results[:20]
 
+    local_foods = await run_in_threadpool(_search_local)
+
+    if local_foods:
+        return [
+            FoodItem(
+                name=f.get('name', 'Alimento'),
+                brand=f.get('category', ''),
+                calories=f.get('calories', 0),
+                protein=f.get('protein', 0),
+                carbs=f.get('carbs', 0),
+                fat=f.get('fat', 0),
+                image_url=f.get('image_url', ''),
+                barcode=f.get('id', ''),
+                quantity=f.get('quantity', 100),
+                serving_size=f.get('serving_size', '100g')
+            )
+            for f in local_foods
+        ]
+
+    # --- 4) Nada encontrado: devolver genérico ---
+    return [FoodItem(
+        name=f"{q.capitalize()} (Genérico)",
+        brand="Sin marca",
+        calories=100,
+        protein=5,
+        carbs=10,
+        fat=2,
+        image_url="",
+        barcode="",
+        quantity=100,
+        serving_size="100g"
+    )]
+
+@router.get("/", response_model=List[DietPlan])
+async def get_my_diet_plans(
+    current_user: User = Depends(get_current_user)
+) -> Any:
+
+    try:
+        docs = get_diets_ref()\
+            .where("user_id", "==", str(current_user.id))\
+            .order_by("created_at", direction=firebase_firestore.Query.DESCENDING)\
+            .stream()
+        results = []
+        for doc in docs:
+            data = doc.to_dict()
+            data.setdefault("id", doc.id)
+            results.append(data)
+        return results
+    except Exception as e:
+        print(f"WARN: Sorted diet query failed (likely missing index). Falling back to unsorted. Error: {e}")
+        docs = get_diets_ref().where("user_id", "==", str(current_user.id)).stream()
+        results = []
+        for doc in docs:
+            data = doc.to_dict()
+            data.setdefault("id", doc.id)
+            results.append(data)
+        return results
 
 @router.post("/", response_model=DietPlan)
 async def create_diet_plan(
     plan: DietPlanCreate,
     current_user: User = Depends(get_current_user)
 ) -> Any:
-    """
-    Create a new diet plan for the user.
-    """
-    try:
-        print(f"DEBUG: Creating diet plan for user {current_user.id}", flush=True)
-        # print(f"DEBUG: Payload: {plan.model_dump_json()}", flush=True) # Pydantic v2
-        print(f"DEBUG: Payload: {plan.dict()}", flush=True) 
 
+    try:
         plan_data = plan.dict()
         plan_id = str(uuid.uuid4())
-        
+
         new_plan = {
             "id": plan_id,
-            "user_id": current_user.id,
+            "user_id": str(current_user.id),
             "created_at": datetime.utcnow(),
             **plan_data
         }
-        
-        # Ensure dates/timestamps are serialized if needed or Firestore handles them (it does)
+
         get_diets_ref().document(plan_id).set(new_plan)
-        print(f"DEBUG: Diet plan {plan_id} created successfully", flush=True)
         return new_plan
     except Exception as e:
-        print(f"ERROR: Failed to create diet plan: {repr(e)}", flush=True)
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to create diet plan: {str(e)}")
@@ -127,55 +210,31 @@ async def get_diet_plan(
     diet_id: str,
     current_user: User = Depends(get_current_user)
 ) -> Any:
-    """
-    Get diet plan by ID.
-    """
+
     doc = get_diets_ref().document(diet_id).get()
     if not doc.exists:
         raise HTTPException(status_code=404, detail="Diet plan not found")
-    
-    data = doc.to_dict()
-    # Optional: Check ownership. For now, we return it.
-    
-    return data
 
-@router.get("/", response_model=List[DietPlan])
-async def get_my_diet_plans(
-    current_user: User = Depends(get_current_user)
-) -> Any:
-    """
-    Get all diet plans for the current user.
-    """
-    try:
-        docs = get_diets_ref()\
-            .where("user_id", "==", current_user.id)\
-            .order_by("created_at", direction=firestore.Query.DESCENDING)\
-            .stream()
-        return [doc.to_dict() for doc in docs]
-    except Exception as e:
-        print(f"WARN: Sorted diet query failed (likely missing index). Falling back to unsorted. Error: {e}")
-        docs = get_diets_ref().where("user_id", "==", current_user.id).stream()
-        return [doc.to_dict() for doc in docs]
+    data = doc.to_dict()
+    data.setdefault("id", doc.id)
+    return data
 
 @router.delete("/{diet_id}", response_model=dict)
 async def delete_diet_plan(
     diet_id: str,
     current_user: User = Depends(get_current_user)
 ) -> Any:
-    """
-    Delete a diet plan by ID.
-    """
+
     doc_ref = get_diets_ref().document(diet_id)
     doc = doc_ref.get()
-    
+
     if not doc.exists:
         raise HTTPException(status_code=404, detail="Diet plan not found")
-        
+
     data = doc.to_dict()
-    # Check ownership
+
     if data.get("user_id") != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-        
-    # Delete doc
+
     doc_ref.delete()
     return {"status": "success", "message": "Diet plan deleted"}
