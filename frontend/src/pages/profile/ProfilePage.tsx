@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { LogOut, Moon, Sun, Edit2, Camera, ChevronRight, Dumbbell, Clock, Flame, Zap, Trophy, Users, Scale, TrendingUp } from 'lucide-react';
+import { LogOut, Moon, Sun, Edit2, Camera, ChevronRight, Dumbbell, Clock, Flame, Zap, Trophy, Users, Scale, TrendingUp, Lock } from 'lucide-react';
 import { WorkoutHistoryList } from '../../components/profile/WorkoutHistoryList';
 import { RanksModal } from '../../components/profile/RanksModal';
 import { getScheduledWorkouts, getScheduledWorkoutsCache } from '../../services/tracking';
@@ -268,6 +268,53 @@ export function ProfilePage() {
                             </div>
                         ))}
                     </div>
+
+                    {/* Insignias */}
+                    {(() => {
+                        const RANK_ORDER = ['Bronze','Silver','Gold','Platinum','Diamond','Champion'];
+                        const rankIdx = RANK_ORDER.indexOf(rank);
+                        const badges = [
+                            // Rango
+                            { emoji: '🥉', label: 'Bronce',     desc: 'Rango Bronce',             earned: rankIdx >= 0 },
+                            { emoji: '🥈', label: 'Plata',      desc: 'Rango Plata',              earned: rankIdx >= 1 },
+                            { emoji: '🥇', label: 'Oro',        desc: 'Rango Oro',                earned: rankIdx >= 2 },
+                            { emoji: '💎', label: 'Platino',    desc: 'Rango Platino',            earned: rankIdx >= 3 },
+                            { emoji: '💠', label: 'Diamante',   desc: 'Rango Diamante',           earned: rankIdx >= 4 },
+                            { emoji: '👑', label: 'Campeón',    desc: 'Rango más alto',           earned: rankIdx >= 5 },
+                            // Actividad
+                            { emoji: '⚡', label: 'Iniciado',   desc: '10 entrenamientos',        earned: workoutCount >= 10 },
+                            { emoji: '💪', label: 'Dedicado',   desc: '50 entrenamientos',        earned: workoutCount >= 50 },
+                            { emoji: '🔥', label: 'En racha',   desc: '7 días seguidos',          earned: streak >= 7 },
+                            { emoji: '🌍', label: 'Top 100',    desc: 'Top 100 global',           earned: globalPosition > 0 && globalPosition <= 100 },
+                            { emoji: '🏆', label: 'Top 10%',    desc: 'Top 10% global',           earned: globalPosition > 0 && totalUsers > 0 && (globalPosition / totalUsers) <= 0.10 },
+                        ];
+                        const earned = badges.filter(b => b.earned);
+                        const locked = badges.filter(b => !b.earned);
+                        return (
+                            <div style={{ marginBottom: 18 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fg-mute)', letterSpacing: '0.08em', marginBottom: 10 }}>INSIGNIAS</div>
+                                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }} className="no-scrollbar">
+                                    {[...earned, ...locked].map(b => (
+                                        <div key={b.label} style={{
+                                            flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                                            background: b.earned ? 'color-mix(in oklch, var(--accent) 10%, var(--card))' : 'var(--card)',
+                                            border: `1px solid ${b.earned ? 'color-mix(in oklch, var(--accent) 35%, var(--line))' : 'var(--line)'}`,
+                                            borderRadius: 16, padding: '12px 10px', minWidth: 72, position: 'relative',
+                                        }}>
+                                            <span style={{ fontSize: 26, opacity: b.earned ? 1 : 0.25 }}>{b.emoji}</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: b.earned ? 'var(--fg)' : 'var(--fg-dim)', textAlign: 'center', lineHeight: 1.2 }}>{b.label}</span>
+                                            <span style={{ fontSize: 9, color: 'var(--fg-dim)', textAlign: 'center', lineHeight: 1.2 }}>{b.desc}</span>
+                                            {!b.earned && (
+                                                <div style={{ position: 'absolute', top: 6, right: 6, color: 'var(--fg-dim)', opacity: 0.4 }}>
+                                                    <Lock size={10}/>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* Quick links */}
                     <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden' }}>

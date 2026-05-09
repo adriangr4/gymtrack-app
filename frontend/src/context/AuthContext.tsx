@@ -18,6 +18,7 @@ interface User {
     current_routine_id?: string;
     current_diet_id?: string;
     is_admin?: boolean;
+    is_pro?: boolean;
     xp?: number;
     level?: number;
 }
@@ -48,6 +49,7 @@ async function fetchUserDoc(uid: string): Promise<User | null> {
         current_routine_id: d.current_routine_id ?? undefined,
         current_diet_id: d.current_diet_id ?? undefined,
         is_admin: d.is_admin ?? false,
+        is_pro: d.is_pro ?? false,
         xp: d.xp ?? 0,
         level: d.level ?? 1,
     };

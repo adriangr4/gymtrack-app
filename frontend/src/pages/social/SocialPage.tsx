@@ -310,7 +310,7 @@ export function SocialPage() {
 
     const fetchFeed = async (filter: 'global' | 'friends' = activeFilter) => {
         setLoading(true);
-        try { const feed = await getSocialFeed(filter); setPosts(feed); } catch {} finally { setLoading(false); }
+        try { const feed = await getSocialFeed(filter, user?.id); setPosts(feed); } catch {} finally { setLoading(false); }
     };
 
     useEffect(() => { fetchFeed('global'); }, []);
@@ -335,7 +335,7 @@ export function SocialPage() {
         if (!user) return;
         setImportingId(post.id);
         try {
-            await importContent(post.content_type, post.content_id, user.id);
+            await importContent(post.content_type, post.content_id, user.id, user.username, user.profilePicture);
             if (post.content_type === 'diet') { clearDietsCache(); alert('¡Importado! Ya puedes verlo en tus dietas.'); }
             else { clearRoutineCache(); alert('¡Importado! Ya puedes verlo en tus rutinas.'); }
         } catch (e: any) {
@@ -352,7 +352,7 @@ export function SocialPage() {
             await ratePost(postId, score);
             if (importAfterRating && user) {
                 try {
-                    await importContent(contentType, contentId, user.id);
+                    await importContent(contentType, contentId, user.id, user.username, user.profilePicture);
                     if (contentType === 'diet') clearDietsCache(); else clearRoutineCache();
                     alert('¡Valorado e importado!');
                 } catch { alert('Valoración guardada. Pulsa Importar de nuevo.'); }

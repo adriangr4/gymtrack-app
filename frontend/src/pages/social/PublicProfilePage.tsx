@@ -20,17 +20,23 @@ export function PublicProfilePage() {
     const [followLoading, setFollowLoading] = useState(false);
 
     useEffect(() => {
-        if (!userId) return;
-        Promise.all([
-            getPublicProfile(userId),
-            getUserPosts(userId),
-        ]).then(([profileData, postsData]) => {
-            setProfile(profileData);
-            setPosts(postsData);
-        }).catch(e => {
-            console.error('Failed to load public profile', e);
-        }).finally(() => setLoading(false));
-    }, [userId]);
+        if (userId && currentUser?.id && userId === currentUser.id) {
+            navigate('/profile', { replace: true });
+            return;
+        }
+    }, [userId, currentUser?.id]);
+
+    useEffect(() => {
+        if (!userId || (currentUser?.id && userId === currentUser.id)) return;
+        setLoading(true);
+        getPublicProfile(userId, currentUser?.id)
+            .then(p => setProfile(p))
+            .catch(() => setProfile(null))
+            .finally(() => setLoading(false));
+        getUserPosts(userId)
+            .then(setPosts)
+            .catch(() => setPosts([]));
+    }, [userId, currentUser?.id]);
 
     const handleFollow = async () => {
         if (!profile || !userId) return;
@@ -40,7 +46,7 @@ export function PublicProfilePage() {
                 await unfollowUser(userId, currentUser?.id ?? '');
                 setProfile(p => p ? { ...p, is_following: false, followers_count: p.followers_count - 1 } : p);
             } else {
-                await followUser(userId, currentUser?.id ?? '');
+                await followUser(userId, currentUser?.id ?? '', currentUser?.username, currentUser?.profilePicture);
                 setProfile(p => p ? { ...p, is_following: true, followers_count: p.followers_count + 1 } : p);
             }
         } catch (e) {
@@ -54,17 +60,18 @@ export function PublicProfilePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <Loader2 className="size-8 animate-spin text-primary" />
+            <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+                <Loader2 size={28} style={{ color: 'var(--accent)', animation: 'spin 1s linear infinite' }} />
             </div>
         );
     }
 
     if (!profile) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-                <p className="text-muted-foreground">Usuario no encontrado</p>
-                <button onClick={() => navigate(-1)} className="text-primary font-bold">Volver</button>
+            <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: 16 }}>
+                <div style={{ fontSize: 48 }}>👤</div>
+                <p style={{ color: 'var(--fg-mute)', fontSize: 15, fontWeight: 600 }}>Usuario no encontrado</p>
+                <button onClick={() => navigate(-1)} style={{ color: 'var(--accent)', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Volver</button>
             </div>
         );
     }

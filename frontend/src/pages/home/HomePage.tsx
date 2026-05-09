@@ -291,6 +291,23 @@ export function HomePage() {
                     </div>
                 </div>
 
+            {/* Ad banner — only non-Pro */}
+            {!user?.is_pro && (
+                <div style={{ margin: '20px 16px 0', borderRadius: 18, overflow: 'hidden', position: 'relative', border: '1px solid var(--line)' }}>
+                    <div style={{ position: 'absolute', top: 6, left: 8, fontSize: 9, color: 'var(--fg-dim)', background: 'rgba(0,0,0,0.35)', borderRadius: 4, padding: '2px 5px', letterSpacing: '0.06em' }}>PUBLICIDAD</div>
+                    <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e293b)', padding: '18px 16px 14px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div style={{ width: 50, height: 50, borderRadius: 14, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'grid', placeItems: 'center', fontSize: 26, flexShrink: 0 }}>💪</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Gymshark — Nueva colección SS25</div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>Ropa deportiva premium · Envío gratis +50€</div>
+                        </div>
+                        <Link to="/pro" style={{ textDecoration: 'none', flexShrink: 0 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', border: '1px solid #f59e0b44', borderRadius: 8, padding: '5px 10px', whiteSpace: 'nowrap' }}>Sin anuncios →</div>
+                        </Link>
+                    </div>
+                </div>
+            )}
+
             </main>
         </div>
     );

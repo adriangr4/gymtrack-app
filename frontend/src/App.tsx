@@ -18,6 +18,9 @@ import { WorkoutDetailsPage } from './pages/tracking/WorkoutDetailsPage';
 import { DailyProgressPage } from './pages/tracking/DailyProgressPage';
 import { DietCreatorPage } from './pages/diet/DietCreatorPage';
 import { DietDetailsPage } from './pages/diet/DietDetailsPage';
+import { FoodScanPage } from './pages/diet/FoodScanPage';
+import { NotificationsPage } from './pages/notifications/NotificationsPage';
+import { ProPage } from './pages/pro/ProPage';
 
 function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -44,6 +47,9 @@ function App() {
               <Route path="/diet/:id" element={<DietDetailsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/profile/personal-data" element={<PersonalDataPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/diet/scan" element={<FoodScanPage />} />
+              <Route path="/pro" element={<ProPage />} />
             </Route>
             <Route path="/workout/create" element={<RoutineCreatorPage />} />
             <Route path="/workout/:routineId" element={<WorkoutSessionPage />} />
