@@ -185,8 +185,8 @@ function ContentPreviewModal({ post, onClose, onImport, importing }: { post: Pos
     const byDay: Record<number, any[]> = {};
     if (preview?.exercises) for (const ex of preview.exercises) { const d = ex.day_of_week ?? 1; (byDay[d] = byDay[d] || []).push(ex); }
 
-    const sheet: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' };
-    const panel: React.CSSProperties = { width: '100%', maxWidth: 480, background: 'var(--card)', border: '1px solid var(--line-2)', borderRadius: '24px 24px 0 0', display: 'flex', flexDirection: 'column', maxHeight: '85dvh' };
+    const sheet: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 88 };
+    const panel: React.CSSProperties = { width: '100%', maxWidth: 480, background: 'var(--card)', border: '1px solid var(--line-2)', borderRadius: 24, display: 'flex', flexDirection: 'column', maxHeight: 'calc(85dvh - 88px)' };
 
     return (
         <div style={sheet} onClick={onClose}>

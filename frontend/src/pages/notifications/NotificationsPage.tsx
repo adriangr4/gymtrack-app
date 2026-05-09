@@ -93,6 +93,7 @@ export function NotificationsPage() {
 }
 
 function NotifRow({ n }: { n: Notification }) {
+    const navigate = useNavigate();
     const initials = n.actor_name.slice(0, 2).toUpperCase();
     return (
         <div style={{
@@ -101,14 +102,17 @@ function NotifRow({ n }: { n: Notification }) {
             borderBottom: '1px solid var(--line)',
             background: n.read ? 'transparent' : 'color-mix(in oklch, var(--accent) 5%, transparent)',
         }}>
-            {/* Avatar */}
-            <div style={{ position: 'relative', flexShrink: 0 }}>
+            {/* Avatar — tappable → public profile */}
+            <div style={{ position: 'relative', flexShrink: 0 }}
+                onClick={() => navigate(`/community/user/${n.actor_id}`)}
+            >
                 <div style={{
                     width: 46, height: 46, borderRadius: '50%',
                     background: n.actor_avatar ? `url("${n.actor_avatar}") center/cover` : 'var(--card-2)',
-                    border: '1px solid var(--line)',
+                    border: '2px solid var(--line)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 14, fontWeight: 700, color: 'var(--fg-mute)',
+                    cursor: 'pointer',
                 }}>
                     {!n.actor_avatar && initials}
                 </div>

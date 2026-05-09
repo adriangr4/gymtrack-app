@@ -264,6 +264,7 @@ export function DietPage() {
     const [tab, setTab] = useState<'hoy' | 'descubrir' | 'planes'>('hoy');
     const [activeCategory, setActiveCategory] = useState('desayuno');
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+    const [selectedRange, setSelectedRange] = useState<{ min: number; max: number } | null>(null);
     const [userDiets, setUserDiets] = useState<any[]>(() => getDietsCache() || []);
     const [nutrition, setNutrition] = useState<any>(() => getNutritionCache() || {
         total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, goal_calories: 2400,
@@ -333,9 +334,13 @@ export function DietPage() {
         if (user?.id) await logFood(user.id, { food_name: food.name, calories: cal, protein: food.protein || 0, carbs: food.carbs || 0, fat: food.fat || 0, meal_name: mealName }).catch(console.error);
     };
 
-    // Filter curated sections by active category
+    // Filter by category AND optional caloric range
     const filteredSections = CURATED_SECTIONS.map(s => ({
-        ...s, recipes: s.recipes.filter(r => r.categories.includes(activeCategory)),
+        ...s, recipes: s.recipes.filter(r => {
+            const matchCat = r.categories.includes(activeCategory);
+            const matchRange = !selectedRange || (r.kcal >= selectedRange.min && r.kcal < selectedRange.max);
+            return matchCat && matchRange;
+        }),
     })).filter(s => s.recipes.length > 0);
 
     // Template image helper
@@ -577,17 +582,27 @@ export function DietPage() {
                     <div style={{ padding: '20px 16px 0' }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', marginBottom: 12 }}>Por rango calórico</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                            {CALORIC_RANGES.map(r => (
-                                <div key={r.label} style={{
-                                    background: `color-mix(in oklch, ${r.color} 10%, var(--card))`,
-                                    border: `1px solid color-mix(in oklch, ${r.color} 25%, var(--line))`,
-                                    borderRadius: 18, padding: '18px 16px', cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', gap: 12,
-                                }}>
-                                    <span style={{ fontSize: 28 }}>{r.emoji}</span>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{r.label}</span>
-                                </div>
-                            ))}
+                            {CALORIC_RANGES.map(r => {
+                                const active = selectedRange?.min === r.min && selectedRange?.max === r.max;
+                                return (
+                                    <div key={r.label}
+                                        onClick={() => setSelectedRange(active ? null : { min: r.min, max: r.max })}
+                                        style={{
+                                            background: active
+                                                ? `color-mix(in oklch, ${r.color} 22%, var(--card))`
+                                                : `color-mix(in oklch, ${r.color} 10%, var(--card))`,
+                                            border: `1.5px solid color-mix(in oklch, ${r.color} ${active ? 60 : 25}%, var(--line))`,
+                                            borderRadius: 18, padding: '18px 16px', cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', gap: 12,
+                                            transform: active ? 'scale(0.97)' : 'scale(1)',
+                                            transition: 'all 0.15s',
+                                        }}>
+                                        <span style={{ fontSize: 28 }}>{r.emoji}</span>
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: active ? 'var(--fg)' : 'var(--fg)' }}>{r.label}</span>
+                                        {active && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--fg-dim)' }}>✕</span>}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
