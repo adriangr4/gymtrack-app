@@ -6,9 +6,11 @@ import { ExerciseSelector } from '../../components/workout/ExerciseSelector';
 import { createRoutine, type Routine, type DailyRoutine, type RoutineExercise } from '../../services/routines';
 import type { Exercise } from '../../services/exercises';
 import { ShareModal } from '../../components/social/ShareModal';
+import { useAuth } from '../../context/AuthContext';
 
 export function RoutineCreatorPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [name, setName] = useState('');
     const [activeDay, setActiveDay] = useState('Monday');
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -82,7 +84,7 @@ export function RoutineCreatorPage() {
                 weekly_plan: weeklyPlan,
                 is_public: false
             };
-            const created = await createRoutine(routineData);
+            const created = await createRoutine(routineData, user?.id ?? '');
 
             if (created?.id) {
                 setShareModal({ isOpen: true, routineId: created.id, routineName: name });

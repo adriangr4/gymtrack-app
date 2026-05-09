@@ -6,10 +6,12 @@ import {
     type PublicUserProfile, type Post
 } from '../../services/social';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../context/AuthContext';
 
 export function PublicProfilePage() {
     const { userId } = useParams<{ userId: string }>();
     const navigate = useNavigate();
+    const { user: currentUser } = useAuth();
 
     const [profile, setProfile] = useState<PublicUserProfile | null>(null);
     const [posts, setPosts] = useState<Post[]>([]);
@@ -35,10 +37,10 @@ export function PublicProfilePage() {
         setFollowLoading(true);
         try {
             if (profile.is_following) {
-                await unfollowUser(userId);
+                await unfollowUser(userId, currentUser?.id ?? '');
                 setProfile(p => p ? { ...p, is_following: false, followers_count: p.followers_count - 1 } : p);
             } else {
-                await followUser(userId);
+                await followUser(userId, currentUser?.id ?? '');
                 setProfile(p => p ? { ...p, is_following: true, followers_count: p.followers_count + 1 } : p);
             }
         } catch (e) {

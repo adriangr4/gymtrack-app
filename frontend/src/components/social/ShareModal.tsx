@@ -29,6 +29,7 @@ export function ShareModal({ isOpen, contentType, contentId, contentName, onClos
                 creator_id: user.id,
                 creator_name: user.username ?? 'Usuario',
                 creator_avatar: user.profilePicture ?? undefined,
+                created_at: new Date().toISOString(),
             });
             setStatus('success');
             setTimeout(() => {

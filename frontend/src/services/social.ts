@@ -37,6 +37,8 @@ export interface PublicUserProfile {
     followers_count: number;
     following_count: number;
     is_following: boolean;
+    routine_avg_rating: number;
+    diet_avg_rating: number;
 }
 
 export const getSocialFeed = async (filter: string = 'global'): Promise<Post[]> => {
@@ -135,7 +137,7 @@ export const getPublicProfile = async (userId: string): Promise<PublicUserProfil
     const snap = await getDoc(doc(db, 'users', userId));
     if (!snap.exists()) throw new Error('User not found');
     const d = snap.data();
-    return { id: userId, username: d.username, profile_picture: d.profile_picture, followers_count: 0, following_count: 0, is_following: false };
+    return { id: userId, username: d.username, profile_picture: d.profile_picture, followers_count: 0, following_count: 0, is_following: false, routine_avg_rating: 0, diet_avg_rating: 0 };
 };
 
 export const getUserPosts = async (userId: string): Promise<Post[]> => {
