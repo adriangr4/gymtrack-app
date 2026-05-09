@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../api/client';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 interface Notification {
     id: string;
@@ -63,7 +64,13 @@ export function TopHeader() {
     useEffect(() => {
         if (!user) return;
         const fetch = async () => {
-            try { const r = await api.get('/notifications'); setNotifications(r.data); } catch {}
+            try {
+                const snap = await getDocs(query(
+                    collection(db, 'notifications'),
+                    where('user_id', '==', user.id),
+                ));
+                setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification)));
+            } catch {}
         };
         fetch();
         const iv = setInterval(fetch, 60000);
@@ -80,7 +87,7 @@ export function TopHeader() {
 
     const markAsRead = async (id: string) => {
         try {
-            await api.patch(`/notifications/${id}/read`);
+            await updateDoc(doc(db, 'notifications', id), { read: true });
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
         } catch {}
     };
@@ -89,7 +96,7 @@ export function TopHeader() {
         const unread = notifications.filter(n => !n.read);
         if (!unread.length) return;
         try {
-            await Promise.all(unread.map(n => api.patch(`/notifications/${n.id}/read`)));
+            await Promise.all(unread.map(n => updateDoc(doc(db, 'notifications', n.id), { read: true })));
             setNotifications(prev => prev.map(n => ({ ...n, read: true })));
         } catch {}
     };

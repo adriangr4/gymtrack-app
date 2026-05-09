@@ -1,4 +1,5 @@
-import api from '../api/client';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export interface Exercise {
     id: string;
@@ -11,6 +12,6 @@ export interface Exercise {
 }
 
 export const getExercises = async (): Promise<Exercise[]> => {
-    const response = await api.get<Exercise[]>('/exercises/');
-    return response.data;
+    const snap = await getDocs(collection(db, 'exercises'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Exercise));
 };

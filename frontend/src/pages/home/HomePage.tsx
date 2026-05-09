@@ -4,10 +4,9 @@ import { Plus, ChevronRight } from 'lucide-react';
 
 import { getDashboardStats, getDashboardStatsCache, type DashboardStats } from '../../services/user';
 import { getRoutines, getRoutinesCache } from '../../services/routines';
-import { getNutritionCache, setNutritionCache } from '../../services/nutrition';
+import { getNutritionCache, setNutritionCache, getNutritionToday } from '../../services/nutrition';
 import { useAuth } from '../../context/AuthContext';
 import { TopHeader } from '../../components/layout/TopHeader';
-import api from '../../api/client';
 import { getRoutineImage, seedFrom } from '../../lib/imageUtils';
 
 function Bar({ pct = 0.5, color = 'var(--accent)', h = 4 }: { pct?: number; color?: string; h?: number }) {
@@ -43,12 +42,13 @@ export function HomePage() {
             setFeaturedRoutineId(active?.id ?? routines[0]?.id ?? null);
         }
 
+        if (!user?.id) return;
         const fetchData = async () => {
             try {
                 const [statsRes, nutritionRes, routinesRes] = await Promise.allSettled([
-                    getDashboardStats(),
-                    api.get('/nutrition/today').then(r => r.data),
-                    getRoutines(),
+                    getDashboardStats(user.id),
+                    getNutritionToday(user.id),
+                    getRoutines(user.id),
                 ]);
                 if (statsRes.status === 'fulfilled') setStats(statsRes.value);
                 if (nutritionRes.status === 'fulfilled') { setNutrition(nutritionRes.value); setNutritionCache(nutritionRes.value); }
@@ -61,7 +61,7 @@ export function HomePage() {
             } catch {}
         };
         fetchData();
-    }, [user?.current_routine_id, location.key]);
+    }, [user?.id, user?.current_routine_id, location.key]);
 
     const featuredRoutine = routines.find(r => r.id === featuredRoutineId);
     const totalCalories = nutrition?.total_calories || 0;

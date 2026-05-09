@@ -2,61 +2,52 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Scale, Ruler, Save } from 'lucide-react';
 import { WeightGraph } from '../../components/profile/WeightGraph';
-import api from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
+import { logWeight, getWeightHistory } from '../../services/user';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 export function PersonalDataPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [weightHistory, setWeightHistory] = useState<any[]>([]);
     const [currentWeight, setCurrentWeight] = useState('');
     const [height, setHeight] = useState('');
     const [bmi, setBmi] = useState<string>('--');
 
     useEffect(() => {
+        if (!user?.id) return;
         const fetchData = async () => {
             try {
-                const [dashboardRes, historyRes] = await Promise.all([
-                    api.get('/users/me/dashboard'),
-                    api.get('/users/me/weight-history')
+                const [userSnap, history] = await Promise.all([
+                    getDoc(doc(db, 'users', user.id)),
+                    getWeightHistory(user.id),
                 ]);
-
-                if (dashboardRes.data.current_weight) setCurrentWeight(dashboardRes.data.current_weight.toString());
-                if (dashboardRes.data.height) setHeight(dashboardRes.data.height.toString());
-                setWeightHistory(historyRes.data);
-
-                calculateBMI(dashboardRes.data.current_weight, dashboardRes.data.height);
+                const data = userSnap.data() ?? {};
+                if (data.current_weight) setCurrentWeight(String(data.current_weight));
+                if (data.height) setHeight(String(data.height));
+                setWeightHistory(history);
+                calculateBMI(data.current_weight, data.height);
             } catch (error) {
                 console.error("Error fetching personal data", error);
             }
         };
         fetchData();
-    }, []);
+    }, [user?.id]);
 
     const calculateBMI = (w: number, h: number) => {
-        if (!w || !h) {
-            setBmi('--');
-            return;
-        }
-        const heightM = h / 100;
-        const val = (w / (heightM * heightM)).toFixed(1);
-        setBmi(val);
+        if (!w || !h) { setBmi('--'); return; }
+        setBmi((w / ((h / 100) ** 2)).toFixed(1));
     };
 
     const handleSave = async () => {
+        if (!user?.id) return;
         try {
-            if (currentWeight) {
-                await api.post('/users/me/weight', {
-                    weight: parseFloat(currentWeight),
-                    date: new Date().toISOString()
-                });
-            }
-            if (height) {
-                await api.put('/users/me', { height: parseInt(height) });
-            }
-
-            const historyRes = await api.get('/users/me/weight-history');
-            setWeightHistory(historyRes.data);
+            if (currentWeight) await logWeight(user.id, parseFloat(currentWeight));
+            if (height) await updateDoc(doc(db, 'users', user.id), { height: parseInt(height) });
+            const history = await getWeightHistory(user.id);
+            setWeightHistory(history);
             calculateBMI(parseFloat(currentWeight), parseInt(height));
-
         } catch (error) {
             console.error("Error saving data", error);
         }

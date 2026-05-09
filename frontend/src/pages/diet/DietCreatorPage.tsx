@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Plus, Trash2, Save } from 'lucide-react';
-import api from '../../api/client';
-import { clearDietsCache } from '../../services/diet';
+import { createDiet, clearDietsCache } from '../../services/diet';
+import { useAuth } from '../../context/AuthContext';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 import { useDebounce } from '../../hooks/useDebounce';
 
@@ -12,6 +14,7 @@ import { ShareModal } from '../../components/social/ShareModal';
 
 export function DietCreatorPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [name, setName] = useState('');
     const [targetCalories, setTargetCalories] = useState(2000);
     const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
@@ -55,8 +58,12 @@ export function DietCreatorPage() {
 
             setIsSearching(true);
             try {
-                const res = await api.get(`/diets/search?q=${encodeURIComponent(debouncedSearchTerm)}&page=1`);
-                setSearchResults(res.data);
+                const snap = await getDocs(query(
+                    collection(db, 'foods'),
+                    where('name', '>=', debouncedSearchTerm),
+                    where('name', '<=', debouncedSearchTerm + ''),
+                ));
+                setSearchResults(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             } catch (error) {
                 console.error("Error searching food:", error);
                 setSearchResults([]);
@@ -142,14 +149,17 @@ export function DietCreatorPage() {
         const randomImage = randomImages[Math.floor(Math.random() * randomImages.length)];
 
         try {
-            const response = await api.post('/diets/', {
+            const created = await createDiet({
                 name,
                 daily_calories_target: targetCalories,
+                calories: targetCalories,
+                protein: 0,
+                carbs: 0,
+                fats: 0,
                 meals: [],
                 weekly_plan: weeklyPlanPayload,
-                image_url: randomImage
-            });
-            const created = response.data;
+                image_url: randomImage,
+            } as any, user?.id ?? '');
             clearDietsCache();
             if (created?.id) {
                 setShareModal({ isOpen: true, dietId: created.id, dietName: name });

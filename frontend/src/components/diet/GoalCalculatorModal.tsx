@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { X, Calculator, ArrowRight, Target } from 'lucide-react';
-import api from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+
 
 interface GoalCalculatorModalProps {
     isOpen: boolean;
@@ -10,6 +13,7 @@ interface GoalCalculatorModalProps {
 }
 
 export function GoalCalculatorModal({ isOpen, onClose, onApply, initialData }: GoalCalculatorModalProps) {
+    const { user } = useAuth();
     const [step, setStep] = useState(1);
     const [weight, setWeight] = useState(initialData?.weight || 70);
     const [height, setHeight] = useState(initialData?.height || 170);
@@ -150,7 +154,9 @@ export function GoalCalculatorModal({ isOpen, onClose, onApply, initialData }: G
                                 onClick={async () => {
                                     onApply(finalCalories);
                                     try {
-                                        await api.post('/nutrition/goal', { goal: finalCalories });
+                                        if (user?.id) {
+                                            await updateDoc(doc(db, 'users', user.id), { daily_calorie_goal: finalCalories });
+                                        }
                                     } catch (e) {
                                         console.error("Error saving goal", e);
                                     }

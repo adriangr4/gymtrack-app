@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../api/client';
 import { Eye, EyeOff, Loader2, ChevronLeft } from 'lucide-react';
 
 const inputStyle: React.CSSProperties = {
@@ -17,7 +16,7 @@ export function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const [showPw, setShowPw] = useState(false);
 
-    const { login } = useAuth();
+    const { register } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -25,16 +24,17 @@ export function RegisterPage() {
         setError('');
         setLoading(true);
         try {
-            await api.post('/users/', { username, email, password });
-            const fd = new FormData();
-            fd.append('username', email);
-            fd.append('password', password);
-            const { data } = await api.post('/login/access-token', fd);
-            login(data.access_token, data.user || { username, email, id: 0 });
+            await register(username, email, password);
             navigate('/');
         } catch (err: any) {
-            const msg = err.response?.data?.detail;
-            setError(typeof msg === 'string' ? msg : 'Error al registrarse.');
+            const code = err?.code ?? '';
+            if (code === 'auth/email-already-in-use') {
+                setError('Este email ya está registrado.');
+            } else if (code === 'auth/weak-password') {
+                setError('La contraseña debe tener al menos 6 caracteres.');
+            } else {
+                setError('Error al registrarse. Inténtalo de nuevo.');
+            }
         } finally {
             setLoading(false);
         }

@@ -5,8 +5,7 @@ import { getDiets, getDietsCache } from '../../services/diet';
 import { getRoutinesCache } from '../../services/routines';
 import { useAuth } from '../../context/AuthContext';
 import { getDietImage, seedFrom } from '../../lib/imageUtils';
-import { getNutritionCache, setNutritionCache } from '../../services/nutrition';
-import api from '../../api/client';
+import { getNutritionCache, setNutritionCache, getNutritionToday } from '../../services/nutrition';
 
 function Bar({ pct = 0.5, color = 'var(--accent)', h = 3 }: { pct?: number; color?: string; h?: number }) {
     return (
@@ -63,11 +62,12 @@ export function DietPage() {
     const pct = goalKcal > 0 ? consumed / goalKcal : 0;
 
     useEffect(() => {
-        getDiets().then(setUserDiets).catch(console.error);
-        api.get('/nutrition/today')
-            .then(r => { setNutrition(r.data); setNutritionCache(r.data); })
+        if (!user?.id) return;
+        getDiets(user.id).then(setUserDiets).catch(console.error);
+        getNutritionToday(user.id)
+            .then(data => { setNutrition(data); setNutritionCache(data); })
             .catch(console.error);
-    }, []);
+    }, [user?.id]);
 
     const macros = [
         { name: 'Protein', value: Math.round(nutrition?.total_protein || 0), target: Math.round(goalKcal * 0.30 / 4), unit: 'g', color: 'var(--energy)' },

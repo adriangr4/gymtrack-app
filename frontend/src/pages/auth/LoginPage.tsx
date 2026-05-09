@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../api/client';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const inputStyle: React.CSSProperties = {
@@ -24,15 +23,15 @@ export function LoginPage() {
         setError('');
         setLoading(true);
         try {
-            const fd = new FormData();
-            fd.append('username', email);
-            fd.append('password', password);
-            const { data } = await api.post('/login/access-token', fd);
-            if (!data.user || !data.access_token) { setError('Respuesta inválida del servidor.'); return; }
-            login(data.access_token, data.user);
+            await login(email, password);
             navigate('/');
         } catch (err: any) {
-            setError(err.response?.data?.detail || 'Credenciales incorrectas.');
+            const code = err?.code ?? '';
+            if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+                setError('Email o contraseña incorrectos.');
+            } else {
+                setError('Error al iniciar sesión. Inténtalo de nuevo.');
+            }
         } finally {
             setLoading(false);
         }

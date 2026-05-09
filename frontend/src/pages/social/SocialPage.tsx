@@ -8,10 +8,9 @@ import {
     deletePost, deleteComment,
     type Post, type Comment
 } from '../../services/social';
-import api from '../../api/client';
-import { getRoutines, clearRoutineCache } from '../../services/routines';
+import { getRoutine, getRoutines, clearRoutineCache } from '../../services/routines';
 import { getRoutineImage, getDietImage, seedFrom } from '../../lib/imageUtils';
-import { getDiets, clearDietsCache } from '../../services/diet';
+import { getDiet, getDiets, clearDietsCache } from '../../services/diet';
 
 /* ─── Comment drawer ────────────────────────────────── */
 function CommentDrawer({ post, onClose }: { post: Post; onClose: () => void }) {
@@ -30,7 +29,7 @@ function CommentDrawer({ post, onClose }: { post: Post; onClose: () => void }) {
         if (!text.trim() || !user) return;
         setSending(true);
         try {
-            const c = await addComment(post.id, text.trim());
+            const c = await addComment(post.id, text.trim(), user.id, user.username);
             setComments(prev => [...prev, c]);
             setText('');
             setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -116,14 +115,15 @@ function ShareSelectorModal({ type, onClose, onShared }: { type: 'routine' | 'di
     const [sharingId, setSharingId] = useState<string | null>(null);
 
     useEffect(() => {
-        (type === 'routine' ? getRoutines() : getDiets()).then(setItems).catch(() => {}).finally(() => setLoading(false));
+        if (!user?.id) return;
+        (type === 'routine' ? getRoutines(user.id) : getDiets(user.id)).then(setItems).catch(() => {}).finally(() => setLoading(false));
     }, [type]);
 
     const handleShare = async (item: any) => {
         if (!user) return;
         setSharingId(item.id);
         try {
-            await shareToCommunity({ content_type: type, content_id: item.id, content_name: item.name || 'Plan', creator_id: user.id, creator_name: user.username, creator_avatar: user.profilePicture });
+            await shareToCommunity({ content_type: type as 'routine'|'diet', content_id: item.id, content_name: item.name || 'Plan', creator_id: user.id, creator_name: user.username, creator_avatar: user.profilePicture, created_at: new Date().toISOString() });
             alert('¡Compartido con éxito!');
             onShared(); onClose();
         } catch (e: any) { alert(e?.response?.data?.detail || 'Error al compartir'); }
@@ -169,8 +169,16 @@ function ContentPreviewModal({ post, onClose, onImport, importing }: { post: Pos
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        api.get(`/social/preview/${post.content_type}/${post.content_id}`)
-            .then(r => setPreview(r.data)).catch(() => setPreview(null)).finally(() => setLoading(false));
+        const fetch = async () => {
+            try {
+                const data = post.content_type === 'routine'
+                    ? await getRoutine(post.content_id)
+                    : await getDiet(post.content_id);
+                setPreview(data);
+            } catch { setPreview(null); }
+            finally { setLoading(false); }
+        };
+        fetch();
     }, [post.content_id, post.content_type]);
 
     const dayNames = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -314,7 +322,8 @@ export function SocialPage() {
             const liked = p.likes.includes(user.id);
             return { ...p, likes: liked ? p.likes.filter(id => id !== user.id) : [...p.likes, user.id] };
         }));
-        try { await toggleLike(postId); } catch { fetchFeed(); }
+        const post = posts.find(p => p.id === postId);
+        try { await toggleLike(postId, user.id, post?.likes ?? []); } catch { fetchFeed(); }
     };
 
     const handleDeletePost = async (postId: string) => {
@@ -323,18 +332,14 @@ export function SocialPage() {
     };
 
     const handleImport = async (post: Post) => {
+        if (!user) return;
         setImportingId(post.id);
         try {
-            await importContent(post.id, post.content_type, post.content_id);
+            await importContent(post.content_type, post.content_id, user.id);
             if (post.content_type === 'diet') { clearDietsCache(); alert('¡Importado! Ya puedes verlo en tus dietas.'); }
             else { clearRoutineCache(); alert('¡Importado! Ya puedes verlo en tus rutinas.'); }
         } catch (e: any) {
-            const detail = e?.response?.data?.detail;
-            if (detail === 'rating_required') {
-                setRatingModal({ isOpen: true, postId: post.id, contentType: post.content_type, contentId: post.content_id, importAfterRating: true });
-            } else {
-                alert(`Error: ${detail || 'Error al importar'}`);
-            }
+            alert(`Error al importar: ${e?.message ?? ''}`);
         } finally { setImportingId(null); }
     };
 
@@ -344,27 +349,16 @@ export function SocialPage() {
         setRatingModal({ isOpen: false, postId: null, contentType: null, contentId: null, importAfterRating: false });
         setHoverScore(0);
         try {
-            const res = await ratePost(postId, score, contentType, contentId);
-            setPosts(cur => cur.map(p => p.id === postId ? { ...p, rating_sum: res.rating_sum, rating_count: res.rating_count } : p));
-            if (importAfterRating) {
+            await ratePost(postId, score);
+            if (importAfterRating && user) {
                 try {
-                    await importContent(postId, contentType, contentId);
+                    await importContent(contentType, contentId, user.id);
                     if (contentType === 'diet') clearDietsCache(); else clearRoutineCache();
                     alert('¡Valorado e importado!');
                 } catch { alert('Valoración guardada. Pulsa Importar de nuevo.'); }
             } else { alert('¡Valorado!'); }
         } catch (e: any) {
-            const detail = e?.response?.data?.detail;
-            if (detail === 'already_rated') {
-                alert('Ya has valorado este contenido.');
-                if (importAfterRating && contentType && contentId) {
-                    try {
-                        await importContent(postId, contentType, contentId);
-                        if (contentType === 'diet') clearDietsCache(); else clearRoutineCache();
-                        alert('¡Importado!');
-                    } catch {}
-                }
-            } else { alert('Error al valorar'); }
+            alert('Error al valorar');
         }
     };
 

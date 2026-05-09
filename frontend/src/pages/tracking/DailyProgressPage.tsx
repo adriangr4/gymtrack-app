@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Flame, Footprints, Timer, Activity, Smartphone, Lock } from 'lucide-react';
 import { usePedometer } from '../../hooks/usePedometer';
 import { useEffect, useState } from 'react';
-import api from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
+import { getDashboardStats } from '../../services/user';
 
 function Ring({ pct = 0, size = 200, sw = 10, color = 'var(--accent)' }: { pct?: number; size?: number; sw?: number; color?: string }) {
     const r = (size - sw) / 2, c = 2 * Math.PI * r;
@@ -42,12 +43,14 @@ function StatCard({ icon, value, label, sub, color, fullWidth }: {
 
 export function DailyProgressPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const { steps, calories: stepCalories, distance, permissionState, requestPermission } = usePedometer();
     const [dashboardStats, setStats] = useState<any>(null);
 
     useEffect(() => {
-        api.get('/users/me/dashboard').then(res => setStats(res.data)).catch(console.error);
-    }, []);
+        if (!user?.id) return;
+        getDashboardStats(user.id).then(setStats).catch(console.error);
+    }, [user?.id]);
 
     const workoutCalories = dashboardStats?.calories_burned || 0;
     const totalCalories   = workoutCalories + stepCalories;

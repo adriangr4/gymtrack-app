@@ -1,4 +1,8 @@
-import api from '../api/client';
+import {
+    collection, getDocs, getDoc, doc, addDoc, deleteDoc, updateDoc,
+    query, where, orderBy, arrayUnion, arrayRemove, increment,
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export interface Post {
     id: string;
@@ -6,11 +10,9 @@ export interface Post {
     content_id: string;
     content_name: string;
     content_image?: string;
-
     creator_id: string;
     creator_name: string;
     creator_avatar?: string;
-
     likes: string[];
     rating_sum: number;
     rating_count: number;
@@ -34,95 +36,139 @@ export interface PublicUserProfile {
     profile_picture?: string;
     followers_count: number;
     following_count: number;
-    routine_avg_rating: number;
-    diet_avg_rating: number;
     is_following: boolean;
 }
 
 export const getSocialFeed = async (filter: string = 'global'): Promise<Post[]> => {
-    const res = await api.get(`/social/feed?filter=${filter}`);
-    return res.data;
+    const snap = await getDocs(query(
+        collection(db, 'posts'),
+        orderBy('created_at', 'desc'),
+    ));
+    const posts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+    if (filter === 'global') return posts;
+    return posts;
 };
 
-export const shareToCommunity = async (payload: {
-    content_type: 'routine' | 'diet';
-    content_id: string;
-    content_name: string;
-    content_image?: string;
-    creator_id: string;
-    creator_name: string;
-    creator_avatar?: string;
-}): Promise<Post> => {
-    const res = await api.post('/social/share', payload);
-    return res.data;
-};
-
-export const toggleLike = async (postId: string): Promise<{ success: boolean; likes: string[] }> => {
-    const res = await api.post(`/social/posts/${postId}/like`);
-    return res.data;
-};
-
-export const ratePost = async (
-    postId: string,
-    score: number,
-    contentType: 'routine' | 'diet',
-    contentId: string
-): Promise<{ success: boolean; rating_sum: number; rating_count: number }> => {
-    const res = await api.post(`/social/posts/${postId}/rate`, {
-        content_type: contentType,
-        content_id: contentId,
-        score,
+export const shareToCommunity = async (payload: Omit<Post, 'id' | 'likes' | 'rating_sum' | 'rating_count' | 'comment_count'>): Promise<Post> => {
+    const ref = await addDoc(collection(db, 'posts'), {
+        ...payload,
+        likes: [],
+        rating_sum: 0,
+        rating_count: 0,
+        comment_count: 0,
+        created_at: new Date().toISOString(),
     });
-    return res.data;
+    return { id: ref.id, likes: [], rating_sum: 0, rating_count: 0, comment_count: 0, ...payload };
+};
+
+export const toggleLike = async (postId: string, userId: string, currentLikes: string[]): Promise<{ success: boolean; likes: string[] }> => {
+    const ref = doc(db, 'posts', postId);
+    const hasLiked = currentLikes.includes(userId);
+    await updateDoc(ref, { likes: hasLiked ? arrayRemove(userId) : arrayUnion(userId) });
+    const newLikes = hasLiked ? currentLikes.filter(id => id !== userId) : [...currentLikes, userId];
+    return { success: true, likes: newLikes };
+};
+
+export const ratePost = async (postId: string, score: number): Promise<{ success: boolean }> => {
+    await updateDoc(doc(db, 'posts', postId), {
+        rating_sum: increment(score),
+        rating_count: increment(1),
+    });
+    return { success: true };
 };
 
 export const importContent = async (
-    postId: string,
     contentType: 'routine' | 'diet',
-    contentId: string
+    contentId: string,
+    userId: string,
 ): Promise<{ success: boolean; new_id: string; type: string }> => {
-    const res = await api.post(
-        `/social/import?post_id=${postId}&content_type=${contentType}&content_id=${contentId}`
-    );
-    return res.data;
+    const colName = contentType === 'routine' ? 'routines' : 'diets';
+    const snap = await getDoc(doc(db, colName, contentId));
+    if (!snap.exists()) throw new Error('Content not found');
+
+    const data = snap.data();
+    const { id: _id, creator_id: _c, user_id: _u, ...rest } = data as any;
+    const ref = await addDoc(collection(db, colName), {
+        ...rest,
+        creator_id: userId,
+        user_id: userId,
+        imported_from: contentId,
+        created_at: new Date().toISOString(),
+    });
+
+    if (contentType === 'routine') {
+        const exSnap = await getDocs(query(
+            collection(db, 'routine_exercises'),
+            where('routine_id', '==', contentId),
+        ));
+        await Promise.all(exSnap.docs.map(d => {
+            const { routine_id: _r, ...exData } = d.data();
+            return addDoc(collection(db, 'routine_exercises'), { ...exData, routine_id: ref.id });
+        }));
+    }
+
+    return { success: true, new_id: ref.id, type: contentType };
 };
 
 export const getComments = async (postId: string): Promise<Comment[]> => {
-    const res = await api.get(`/social/posts/${postId}/comments`);
-    return res.data;
+    const snap = await getDocs(query(
+        collection(db, 'comments'),
+        where('post_id', '==', postId),
+        orderBy('created_at', 'asc'),
+    ));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Comment));
 };
 
-export const addComment = async (postId: string, text: string): Promise<Comment> => {
-    const res = await api.post(`/social/posts/${postId}/comments`, { text });
-    return res.data;
+export const addComment = async (postId: string, text: string, userId: string, username: string): Promise<Comment> => {
+    const ref = await addDoc(collection(db, 'comments'), {
+        post_id: postId,
+        author_id: userId,
+        author_name: username,
+        text,
+        created_at: new Date().toISOString(),
+    });
+    await updateDoc(doc(db, 'posts', postId), { comment_count: increment(1) });
+    return { id: ref.id, post_id: postId, author_id: userId, author_name: username, text, created_at: new Date().toISOString() };
 };
 
 export const getPublicProfile = async (userId: string): Promise<PublicUserProfile> => {
-    const res = await api.get(`/social/users/${userId}/public`);
-    return res.data;
+    const snap = await getDoc(doc(db, 'users', userId));
+    if (!snap.exists()) throw new Error('User not found');
+    const d = snap.data();
+    return { id: userId, username: d.username, profile_picture: d.profile_picture, followers_count: 0, following_count: 0, is_following: false };
 };
 
 export const getUserPosts = async (userId: string): Promise<Post[]> => {
-    const res = await api.get(`/social/users/${userId}/posts`);
-    return res.data;
+    const snap = await getDocs(query(
+        collection(db, 'posts'),
+        where('creator_id', '==', userId),
+        orderBy('created_at', 'desc'),
+    ));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
 };
 
-export const followUser = async (userId: string): Promise<{ success: boolean; action: string }> => {
-    const res = await api.post(`/social/users/${userId}/follow`);
-    return res.data;
+export const followUser = async (targetId: string, userId: string): Promise<{ success: boolean; action: string }> => {
+    await addDoc(collection(db, 'follows'), { follower_id: userId, following_id: targetId, created_at: new Date().toISOString() });
+    return { success: true, action: 'followed' };
 };
 
-export const unfollowUser = async (userId: string): Promise<{ success: boolean; action: string }> => {
-    const res = await api.delete(`/social/users/${userId}/follow`);
-    return res.data;
+export const unfollowUser = async (targetId: string, userId: string): Promise<{ success: boolean; action: string }> => {
+    const snap = await getDocs(query(
+        collection(db, 'follows'),
+        where('follower_id', '==', userId),
+        where('following_id', '==', targetId),
+    ));
+    await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+    return { success: true, action: 'unfollowed' };
 };
 
 export const deletePost = async (postId: string): Promise<{ success: boolean }> => {
-    const res = await api.delete(`/social/posts/${postId}`);
-    return res.data;
+    await deleteDoc(doc(db, 'posts', postId));
+    return { success: true };
 };
 
 export const deleteComment = async (postId: string, commentId: string): Promise<{ success: boolean }> => {
-    const res = await api.delete(`/social/posts/${postId}/comments/${commentId}`);
-    return res.data;
+    await deleteDoc(doc(db, 'comments', commentId));
+    await updateDoc(doc(db, 'posts', postId), { comment_count: increment(-1) });
+    return { success: true };
 };

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2, Share2, ChefHat, Flame, Plus, Camera, Check } from 'lucide-react';
-import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { getNutritionCache, setNutritionCache } from '../../services/nutrition';
-import { deleteDiet } from '../../services/diet';
+import { getNutritionCache, setNutritionCache, logFood } from '../../services/nutrition';
+import { getDiet, deleteDiet } from '../../services/diet';
+import { setActiveDiet } from '../../services/user';
 import { shareToCommunity } from '../../services/social';
 import { getDietImage, seedFrom, getImageOverride, setImageOverride, PRESET_DIET_PHOTOS } from '../../lib/imageUtils';
 
@@ -64,8 +64,8 @@ export function DietDetailsPage() {
                     });
                 }
                 else {
-                    const res = await api.get(`/diets/${id}`);
-                    setDiet(res.data);
+                    const data = await getDiet(id!);
+                    setDiet(data);
                 }
             } catch (error) {
                 console.error("Error fetching diet details", error);
@@ -77,14 +77,11 @@ export function DietDetailsPage() {
     }, [id]);
 
     const handleSetActive = async () => {
+        if (!user?.id || !id) return;
         try {
-            await api.put('/users/me/active_diet', { diet_id: id });
+            await setActiveDiet(user.id, id);
+            if (updateUser) updateUser({ current_diet_id: id });
             alert("¡Dieta seleccionada como principal!");
-
-            if (updateUser) {
-                const userRes = await api.get('/users/me');
-                updateUser(userRes.data);
-            }
         } catch (e) {
             console.error("Error setting active diet", e);
         }
@@ -117,8 +114,9 @@ export function DietDetailsPage() {
                 total_fat:      (cache.total_fat      || 0) + fat,
             });
 
-            const res = await api.post('/nutrition/log', { calories: cal, protein, carbs, fat, food_name: food.name, meal_type: mealName });
-            if (res.data) { setNutritionCache(res.data); setTodayMacros(res.data); }
+            if (user?.id) {
+                await logFood(user.id, { food_name: food.name, calories: cal, protein, carbs, fat, meal_name: mealName });
+            }
         } catch (e) {
             console.error(e);
             // Rollback optimistic update
@@ -173,7 +171,8 @@ export function DietDetailsPage() {
                 content_image: diet.image_url,
                 creator_id: user.id,
                 creator_name: user.username || user.email.split('@')[0],
-                creator_avatar: user.profilePicture
+                creator_avatar: user.profilePicture,
+                created_at: new Date().toISOString(),
             });
             alert("¡Dieta compartida con la comunidad!");
         } catch (e: any) {

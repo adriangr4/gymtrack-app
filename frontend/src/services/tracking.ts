@@ -1,4 +1,8 @@
-import api from '../api/client';
+import {
+    collection, getDocs, getDoc, doc, addDoc,
+    query, where, orderBy,
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export interface CreateWorkoutLogData {
     routine_id: string;
@@ -18,40 +22,39 @@ export interface CreateWorkoutLogData {
 
 const HISTORY_CACHE_KEY = 'gymtrack_history_list';
 
-export const clearHistoryCache = (): void => {
-    localStorage.removeItem(HISTORY_CACHE_KEY);
-};
+export const clearHistoryCache = () => localStorage.removeItem(HISTORY_CACHE_KEY);
 
 export const getScheduledWorkoutsCache = (): any[] | null => {
-    try {
-        const cached = localStorage.getItem(HISTORY_CACHE_KEY);
-        if (cached) {
-            return JSON.parse(cached);
-        }
-    } catch (e) {
-        console.warn("Failed to read history cache", e);
-    }
-    return null;
+    try { return JSON.parse(localStorage.getItem(HISTORY_CACHE_KEY) ?? 'null'); } catch { return null; }
 };
 
 export const getScheduledWorkouts = async (userId?: string): Promise<any[]> => {
-    const params: Record<string, string> = {};
-    if (userId) params.user_id = userId;
-    const response = await api.get('/tracking/', { params });
-    try {
-        localStorage.setItem(HISTORY_CACHE_KEY, JSON.stringify(response.data));
-    } catch (e) {
-        console.warn("Failed to save history cache", e);
-    }
-    return response.data;
+    if (!userId) return [];
+    const snap = await getDocs(query(
+        collection(db, 'scheduled_workouts'),
+        where('user_id', '==', userId),
+        orderBy('created_at', 'desc'),
+    ));
+    const workouts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    localStorage.setItem(HISTORY_CACHE_KEY, JSON.stringify(workouts));
+    return workouts;
 };
 
-export const getWorkoutById = async (workoutId: string) => {
-    const response = await api.get(`/tracking/${workoutId}`);
-    return response.data;
+export const getWorkoutById = async (workoutId: string): Promise<any> => {
+    const snap = await getDoc(doc(db, 'scheduled_workouts', workoutId));
+    if (!snap.exists()) throw new Error('Workout not found');
+    return { id: snap.id, ...snap.data() };
 };
 
-export const logWorkoutSession = async (data: CreateWorkoutLogData) => {
-    const response = await api.post('/tracking/log-session', data);
-    return response.data;
+export const logWorkoutSession = async (data: CreateWorkoutLogData, userId: string): Promise<any> => {
+    const today = new Date().toISOString().slice(0, 10);
+    const ref = await addDoc(collection(db, 'scheduled_workouts'), {
+        ...data,
+        user_id: userId,
+        status: 'completed',
+        scheduled_date: today,
+        created_at: new Date().toISOString(),
+    });
+    clearHistoryCache();
+    return { id: ref.id, ...data };
 };

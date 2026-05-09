@@ -45,13 +45,14 @@ export function ProfilePage() {
     const [loadingHistory, setLoadingHistory] = useState(false);
 
     useEffect(() => {
-        getDashboardStats().then(setStats).catch(() => {});
-    }, []);
+        if (!user?.id) return;
+        getDashboardStats(user.id).then(setStats).catch(() => {});
+    }, [user?.id]);
 
     useEffect(() => {
-        if (activeTab !== 'history') return;
+        if (activeTab !== 'history' || !user?.id) return;
         setLoadingHistory(true);
-        Promise.all([getScheduledWorkouts(user?.id), getRoutines(), getExercises()])
+        Promise.all([getScheduledWorkouts(user?.id), getRoutines(user.id), getExercises()])
             .then(([w, r, e]) => {
                 setWorkouts(w);
                 const rMap: Record<string, any> = {};

@@ -1,4 +1,8 @@
-import api from '../api/client';
+import {
+    collection, getDocs, getDoc, doc, addDoc, deleteDoc,
+    query, where,
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export interface Diet {
     id: string;
@@ -11,37 +15,48 @@ export interface Diet {
     image_url?: string;
     meals?: any[];
     user_id?: string;
+    daily_calories_target?: number;
+    total_calories?: number;
+    weekly_plan?: any[];
+    creator_id?: string;
 }
 
-const DIETS_CACHE_KEY = 'gymtrack_diets_list_v3';
+const CACHE_KEY = 'gymtrack_diets_list_v3';
 
 export const getDietsCache = (): Diet[] | null => {
-    try {
-        const cached = localStorage.getItem(DIETS_CACHE_KEY);
-        if (cached) {
-            return JSON.parse(cached);
-        }
-    } catch (e) {
-        console.warn("Failed to read diets cache", e);
-    }
-    return null;
+    try { return JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null'); } catch { return null; }
 };
 
-export const getDiets = async (): Promise<Diet[]> => {
-    const response = await api.get<Diet[]>('/diets/');
-    try {
-        localStorage.setItem(DIETS_CACHE_KEY, JSON.stringify(response.data));
-    } catch (e) {
-        console.warn("Failed to save diets cache", e);
-    }
-    return response.data;
+export const clearDietsCache = () => localStorage.removeItem(CACHE_KEY);
+
+export const getDiets = async (userId: string): Promise<Diet[]> => {
+    const snap = await getDocs(query(
+        collection(db, 'diets'),
+        where('user_id', '==', userId),
+    ));
+    const diets = snap.docs.map(d => ({ id: d.id, ...d.data() } as Diet));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(diets));
+    return diets;
 };
 
-export const clearDietsCache = (): void => {
-    localStorage.removeItem(DIETS_CACHE_KEY);
+export const getDiet = async (id: string): Promise<Diet> => {
+    const snap = await getDoc(doc(db, 'diets', id));
+    if (!snap.exists()) throw new Error('Diet not found');
+    return { id: snap.id, ...snap.data() } as Diet;
+};
+
+export const createDiet = async (diet: Omit<Diet, 'id'>, userId: string): Promise<Diet> => {
+    const ref = await addDoc(collection(db, 'diets'), {
+        ...diet,
+        user_id: userId,
+        creator_id: userId,
+        created_at: new Date().toISOString(),
+    });
+    clearDietsCache();
+    return { id: ref.id, ...diet };
 };
 
 export const deleteDiet = async (id: string): Promise<void> => {
-    await api.delete(`/diets/${id}`);
+    await deleteDoc(doc(db, 'diets', id));
     clearDietsCache();
 };

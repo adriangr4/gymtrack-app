@@ -194,7 +194,7 @@ export function WorkoutSessionPage() {
                 difficulty: difficulty,
                 notes: `Completed ${routine.name}`,
                 logs: logs
-            });
+            }, user?.id ?? '');
 
             const data = response;
             clearHistoryCache();
@@ -211,7 +211,7 @@ export function WorkoutSessionPage() {
             // Fetch updated streak from dashboard
             try {
                 const { getDashboardStats } = await import('../../services/user');
-                const dashStats = await getDashboardStats();
+                const dashStats = await getDashboardStats(user?.id ?? '');
                 if (dashStats.streak_days >= 1) {
                     setStreakDays(dashStats.streak_days);
                     setShowStreakFire(true);

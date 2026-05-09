@@ -33,8 +33,9 @@ export function LibraryPage() {
     const { user, updateUser } = useAuth();
 
     useEffect(() => {
-        getRoutines().then(setRoutines).catch(console.error).finally(() => setLoading(false));
-    }, []);
+        if (!user?.id) return;
+        getRoutines(user.id).then(setRoutines).catch(console.error).finally(() => setLoading(false));
+    }, [user?.id]);
 
     const handleSetActive = async (id: string) => {
         try { await updateUser({ current_routine_id: id }); } catch {}
@@ -58,6 +59,7 @@ export function LibraryPage() {
                 content_name: selected.name, creator_id: user.id,
                 creator_name: user.username || user.email?.split('@')[0] || 'User',
                 creator_avatar: user.profilePicture,
+                created_at: new Date().toISOString(),
             });
             alert('¡Rutina compartida!');
         } catch (e: any) { alert(e.response?.data?.detail || 'Error al compartir'); }
