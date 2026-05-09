@@ -204,3 +204,35 @@ html.light .pill {
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─────────────────────────────────────────────
+   Mobile app behaviour — no zoom, no h-scroll
+───────────────────────────────────────────── */
+html {
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    touch-action: pan-y;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+body {
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    position: relative;
+    width: 100%;
+    max-width: 100vw;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent accidental text selection on tap */
+button, a, [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+/* Global scrollbar hidden */
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
