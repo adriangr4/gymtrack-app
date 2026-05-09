@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { LogOut, Moon, Sun, Edit2, Camera, ChevronRight, Dumbbell, Clock, Flame, Zap, Trophy, Users, Scale, TrendingUp, Lock } from 'lucide-react';
+import { LogOut, Moon, Sun, Edit2, Camera, ChevronRight, Dumbbell, Clock, Flame, Trophy, Users, Scale, TrendingUp, Lock } from 'lucide-react';
 import { WorkoutHistoryList } from '../../components/profile/WorkoutHistoryList';
 import { RanksModal } from '../../components/profile/RanksModal';
 import { getScheduledWorkouts, getScheduledWorkoutsCache } from '../../services/tracking';
@@ -250,20 +250,35 @@ export function ProfilePage() {
                     {/* Stat grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
                         {[
-                            { icon: <Dumbbell size={16}/>, value: workoutCount, label: 'Workouts', tone: 'var(--accent)' },
-                            { icon: <Clock size={16}/>,    value: totalTimeLabel, label: 'Total time', tone: 'var(--data)' },
-                            { icon: <Flame size={16}/>,    value: kcalBurned.toLocaleString(), label: 'Kcal burned', tone: 'var(--energy)' },
-                            { icon: <Zap size={16}/>,      value: `${streak}d`, label: 'Streak', tone: 'var(--accent)' },
+                            { icon: <Dumbbell size={16}/>, value: workoutCount, label: 'Workouts', tone: 'var(--accent)', flame: false },
+                            { icon: <Clock size={16}/>,    value: totalTimeLabel, label: 'Total time', tone: 'var(--data)', flame: false },
+                            { icon: <Flame size={16}/>,    value: kcalBurned.toLocaleString(), label: 'Kcal burned', tone: 'var(--energy)', flame: false },
+                            { icon: null, value: `${streak}d`, label: 'Streak', tone: '#f97316', flame: true },
                         ].map(s => (
-                            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: 14 }}>
+                            <div key={s.label} style={{
+                                background: s.flame && streak > 0
+                                    ? 'color-mix(in oklch,#f97316 8%,var(--card))'
+                                    : 'var(--card)',
+                                border: `1px solid ${s.flame && streak > 0 ? 'color-mix(in oklch,#f97316 30%,var(--line))' : 'var(--line)'}`,
+                                borderRadius: 18, padding: 14,
+                            }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                    <span style={{
-                                        width: 28, height: 28, borderRadius: 9,
-                                        background: `color-mix(in oklch, ${s.tone} 16%, transparent)`,
-                                        display: 'grid', placeItems: 'center', color: s.tone,
-                                    }}>{s.icon}</span>
+                                    {s.flame ? (
+                                        <span style={{
+                                            fontSize: 22,
+                                            display: 'block',
+                                            animation: streak > 0 ? 'streakFlame 0.7s ease-in-out infinite alternate' : 'none',
+                                            filter: streak > 0 ? 'drop-shadow(0 0 6px rgba(255,100,0,0.7))' : 'none',
+                                        }}>🔥</span>
+                                    ) : (
+                                        <span style={{
+                                            width: 28, height: 28, borderRadius: 9,
+                                            background: `color-mix(in oklch, ${s.tone} 16%, transparent)`,
+                                            display: 'grid', placeItems: 'center', color: s.tone,
+                                        }}>{s.icon}</span>
+                                    )}
                                 </div>
-                                <div className="num" style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--fg)' }}>{s.value}</div>
+                                <div className="num" style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: s.flame && streak > 0 ? '#f97316' : 'var(--fg)' }}>{s.value}</div>
                                 <div style={{ fontSize: 11, color: 'var(--fg-mute)', marginTop: 2 }}>{s.label}</div>
                             </div>
                         ))}

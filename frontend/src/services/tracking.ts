@@ -1,5 +1,5 @@
 import {
-    collection, getDocs, getDoc, doc, addDoc,
+    collection, getDocs, getDoc, doc, addDoc, updateDoc,
     query, where, orderBy,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -46,15 +46,61 @@ export const getWorkoutById = async (workoutId: string): Promise<any> => {
     return { id: snap.id, ...snap.data() };
 };
 
+// kcal per set based on reps + weight (realistic weight training estimate)
+export const calcSetKcal = (reps: number, weightKg: number): number =>
+    reps * (weightKg * 0.02 + 0.5);
+
+// XP per set based on reps + weight + difficulty
+export const calcSetXp = (reps: number, weightKg: number, diffMult: number): number =>
+    Math.round((reps * 0.5 + weightKg * 0.1 + 5) * diffMult);
+
 export const logWorkoutSession = async (data: CreateWorkoutLogData, userId: string): Promise<any> => {
+    const diffMult = data.difficulty === 'hard' ? 1.5 : data.difficulty === 'easy' ? 1.0 : 1.2;
+
+    // Calculate totals from actual logs (sets × reps × weight)
+    let totalKcal = 0;
+    let totalXp = 0;
+    data.logs.forEach(log => {
+        totalKcal += calcSetKcal(log.reps, log.weight_kg);
+        totalXp   += calcSetXp(log.reps, log.weight_kg, diffMult);
+    });
+
+    // Minimums: showing up always earns something
+    totalKcal = Math.max(Math.round(totalKcal), 30);
+    totalXp   = Math.max(totalXp, 20);
+
+    // Fetch current user XP/level from Firestore
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    const currentXp = Number(userSnap.data()?.xp ?? 0);
+    const newXp = currentXp + totalXp;
+
+    // Level formula: level = floor(√(xp/100)) + 1
+    const newLevel = Math.floor(Math.sqrt(newXp / 100)) + 1;
+    const prevLevelXp = (newLevel - 1) ** 2 * 100;
+    const nextLevelXp = newLevel ** 2 * 100;
+
+    // Update user XP and level in Firestore
+    await updateDoc(userRef, { xp: newXp, level: newLevel });
+
+    // Save workout log
     const today = new Date().toISOString().slice(0, 10);
     const ref = await addDoc(collection(db, 'scheduled_workouts'), {
         ...data,
+        calories_burned: totalKcal,
         user_id: userId,
         status: 'completed',
         scheduled_date: today,
         created_at: new Date().toISOString(),
     });
     clearHistoryCache();
-    return { id: ref.id, ...data };
+
+    return {
+        id: ref.id,
+        xp_gained:    totalXp,
+        new_level:    newLevel,
+        new_total_xp: newXp,
+        next_level_xp: nextLevelXp,
+        prev_level_xp: prevLevelXp,
+    };
 };

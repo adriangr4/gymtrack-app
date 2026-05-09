@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Play, Timer, Flame, Dumbbell, CheckCircle2, RotateCw, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getRoutine, type Routine } from '../../services/routines';
-import { logWorkoutSession, clearHistoryCache } from '../../services/tracking';
+import { logWorkoutSession, clearHistoryCache, calcSetKcal } from '../../services/tracking';
 import { useAuth } from '../../context/AuthContext';
 import { LevelUpOverlay } from '../../components/gamification/LevelUpOverlay';
 import { StreakFireOverlay } from '../../components/gamification/StreakFireOverlay';
@@ -93,8 +93,6 @@ export function WorkoutSessionPage() {
         if (isActive && !isFinished) {
             interval = setInterval(() => {
                 setElapsedSeconds(s => s + 1);
-
-                setCaloriesBurned(c => c + 0.15);
             }, 1000);
         }
         return () => clearInterval(interval);
@@ -139,6 +137,12 @@ export function WorkoutSessionPage() {
     const handleCompleteSet = () => {
         const setKey = `${currentExerciseIndex}-${currentSetIndex}`;
         setCompletedSets(prev => ({ ...prev, [setKey]: true }));
+
+        // Add calories from this set based on reps × weight (not time)
+        const details = setDetails[setKey];
+        if (details) {
+            setCaloriesBurned(prev => prev + calcSetKcal(details.reps || 10, details.weight || 0));
+        }
 
         const seriesCount = currentExercise.target_sets || currentExercise.series || 3;
 

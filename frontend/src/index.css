@@ -236,3 +236,8 @@ button, a, [role="button"] {
 /* Global scrollbar hidden */
 * { scrollbar-width: none; }
 *::-webkit-scrollbar { display: none; }
+
+@keyframes streakFlame {
+    from { transform: scale(1) rotate(-4deg); filter: drop-shadow(0 0 4px rgba(255,100,0,0.6)); }
+    to   { transform: scale(1.2) rotate(4deg); filter: drop-shadow(0 0 10px rgba(255,80,0,0.9)); }
+}
