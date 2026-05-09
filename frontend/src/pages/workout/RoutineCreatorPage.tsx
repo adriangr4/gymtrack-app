@@ -18,6 +18,7 @@ export function RoutineCreatorPage() {
     const [shareModal, setShareModal] = useState<{ isOpen: boolean; routineId: string; routineName: string }>(
         { isOpen: false, routineId: '', routineName: '' }
     );
+    const [makeSystem, setMakeSystem] = useState(false);
 
     const days = [
         { id: 'Monday', label: 'Lunes', short: 'L' },
@@ -84,7 +85,8 @@ export function RoutineCreatorPage() {
                 weekly_plan: weeklyPlan,
                 is_public: false
             };
-            const created = await createRoutine(routineData, user?.id ?? '');
+            const creatorId = (user?.is_admin && makeSystem) ? 'system' : (user?.id ?? '');
+            const created = await createRoutine(routineData, creatorId);
 
             if (created?.id) {
                 setShareModal({ isOpen: true, routineId: created.id, routineName: name });
@@ -279,15 +281,42 @@ export function RoutineCreatorPage() {
                 </div>
             </main>
 
-            {}
-            <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background to-transparent md:hidden">
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-linear-to-t from-background to-transparent md:hidden" style={{ paddingBottom: 100 }}>
+                {/* Admin toggle */}
+                {user?.is_admin && (
+                    <div
+                        onClick={() => setMakeSystem(v => !v)}
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            background: makeSystem ? 'color-mix(in oklch,var(--accent) 12%,var(--card))' : 'var(--card)',
+                            border: `1px solid ${makeSystem ? 'color-mix(in oklch,var(--accent) 40%,var(--line))' : 'var(--line)'}`,
+                            borderRadius: 14, padding: '10px 14px', marginBottom: 10, cursor: 'pointer',
+                        }}
+                    >
+                        <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>🛡️ Rutina predefinida del sistema</div>
+                            <div style={{ fontSize: 11, color: 'var(--fg-mute)' }}>Visible para todos los usuarios</div>
+                        </div>
+                        <div style={{
+                            width: 40, height: 22, borderRadius: 11,
+                            background: makeSystem ? 'var(--accent)' : 'var(--line)',
+                            position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+                        }}>
+                            <div style={{
+                                position: 'absolute', top: 3, left: makeSystem ? 21 : 3,
+                                width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                                transition: 'left 0.2s',
+                            }}/>
+                        </div>
+                    </div>
+                )}
                 <button
                     onClick={handleSave}
                     disabled={isSaving}
                     className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold shadow-[0_0_20px_rgba(19,91,236,0.5)] hover:bg-blue-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none"
                 >
                     <Save className="size-5" />
-                    {isSaving ? 'Guardando...' : 'Guardar Rutina'}
+                    {isSaving ? 'Guardando...' : makeSystem && user?.is_admin ? 'Publicar como predefinida' : 'Guardar Rutina'}
                 </button>
             </div>
         </div>

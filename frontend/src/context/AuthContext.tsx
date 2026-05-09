@@ -36,10 +36,20 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const ADMIN_EMAIL = 'adrianrubinogarcia@gmail.com';
+
 async function fetchUserDoc(uid: string): Promise<User | null> {
-    const snap = await getDoc(doc(db, 'users', uid));
+    const ref = doc(db, 'users', uid);
+    const snap = await getDoc(ref);
     if (!snap.exists()) return null;
     const d = snap.data();
+
+    // Auto-grant admin to the master account
+    const shouldBeAdmin = (d.email ?? '') === ADMIN_EMAIL;
+    if (shouldBeAdmin && !d.is_admin) {
+        await updateDoc(ref, { is_admin: true, is_pro: true });
+    }
+
     return {
         id: uid,
         username: d.username ?? '',
@@ -48,8 +58,8 @@ async function fetchUserDoc(uid: string): Promise<User | null> {
         daily_calorie_goal: d.daily_calorie_goal ?? undefined,
         current_routine_id: d.current_routine_id ?? undefined,
         current_diet_id: d.current_diet_id ?? undefined,
-        is_admin: d.is_admin ?? false,
-        is_pro: d.is_pro ?? false,
+        is_admin: shouldBeAdmin || (d.is_admin ?? false),
+        is_pro: shouldBeAdmin || (d.is_pro ?? false),
         xp: d.xp ?? 0,
         level: d.level ?? 1,
     };

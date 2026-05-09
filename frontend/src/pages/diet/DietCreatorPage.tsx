@@ -25,6 +25,7 @@ export function DietCreatorPage() {
     const [shareModal, setShareModal] = useState<{ isOpen: boolean; dietId: string; dietName: string }>(
         { isOpen: false, dietId: '', dietName: '' }
     );
+    const [makeSystem, setMakeSystem] = useState(false);
 
     const [weeklyMeals, setWeeklyMeals] = useState<any>({
         Monday: { breakfast: [], lunch: [], dinner: [], snack: [] },
@@ -168,7 +169,7 @@ export function DietCreatorPage() {
                 meals: [],
                 weekly_plan: weeklyPlanPayload,
                 image_url: randomImage,
-            } as any, user?.id ?? '');
+            } as any, (user?.is_admin && makeSystem) ? 'system' : (user?.id ?? ''));
             clearDietsCache();
             if (created?.id) {
                 setShareModal({ isOpen: true, dietId: created.id, dietName: name });
@@ -337,14 +338,40 @@ export function DietCreatorPage() {
                 )}
             </div>
 
-            {}
-            <div className="fixed bottom-6 left-0 right-0 p-6 pt-0 bg-linear-to-t from-background via-background to-transparent md:static md:bg-none">
+            <div className="fixed bottom-0 left-0 right-0 p-4 pt-0 bg-linear-to-t from-background via-background to-transparent md:static md:bg-none" style={{ paddingBottom: 100 }}>
+                {user?.is_admin && (
+                    <div
+                        onClick={() => setMakeSystem(v => !v)}
+                        style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            background: makeSystem ? 'color-mix(in oklch,var(--accent) 12%,var(--card))' : 'var(--card)',
+                            border: `1px solid ${makeSystem ? 'color-mix(in oklch,var(--accent) 40%,var(--line))' : 'var(--line)'}`,
+                            borderRadius: 14, padding: '10px 14px', marginBottom: 10, cursor: 'pointer',
+                        }}
+                    >
+                        <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>🛡️ Dieta predefinida del sistema</div>
+                            <div style={{ fontSize: 11, color: 'var(--fg-mute)' }}>Visible para todos los usuarios</div>
+                        </div>
+                        <div style={{
+                            width: 40, height: 22, borderRadius: 11,
+                            background: makeSystem ? 'var(--accent)' : 'var(--line)',
+                            position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+                        }}>
+                            <div style={{
+                                position: 'absolute', top: 3, left: makeSystem ? 21 : 3,
+                                width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                                transition: 'left 0.2s',
+                            }}/>
+                        </div>
+                    </div>
+                )}
                 <button
                     onClick={handleSaveDiet}
                     className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold shadow-[0_0_20px_rgba(19,91,236,0.5)] hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
                 >
                     <Save className="size-5" />
-                    Guardar Dieta
+                    {makeSystem && user?.is_admin ? 'Publicar como predefinida' : 'Guardar Dieta'}
                 </button>
             </div>
         </div>

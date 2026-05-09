@@ -178,7 +178,12 @@ export function ProfilePage() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                     <div>
-                        <div className="display" style={{ fontSize: 20, color: 'var(--fg)' }}>{user?.username ?? 'Athlete'}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div className="display" style={{ fontSize: 20, color: 'var(--fg)' }}>{user?.username ?? 'Athlete'}</div>
+                            {user?.is_admin && (
+                                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', padding: '3px 8px', borderRadius: 6 }}>🛡️ ADMIN</span>
+                            )}
+                        </div>
                         <div style={{ fontSize: 12, color: 'var(--fg-mute)', marginTop: 2 }}>{user?.email ?? ''}</div>
                     </div>
                     <button onClick={() => setIsEditing(v => !v)} style={{

@@ -45,12 +45,13 @@ function CommentDrawer({ post, onClose }: { post: Post; onClose: () => void }) {
         position: 'fixed', inset: 0, zIndex: 100,
         background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        paddingBottom: 88,
     };
     const panel: React.CSSProperties = {
         width: '100%', maxWidth: 480,
         background: 'var(--card)', border: '1px solid var(--line-2)',
-        borderRadius: '24px 24px 0 0',
-        display: 'flex', flexDirection: 'column', maxHeight: '80dvh',
+        borderRadius: 24,
+        display: 'flex', flexDirection: 'column', maxHeight: 'calc(80dvh - 88px)',
     };
 
     return (
