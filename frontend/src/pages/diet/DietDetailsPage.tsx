@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2, Share2, ChefHat, Flame, Plus, Camera, Check } from 'lucide-react';
+import {
+    ArrowLeft, Trash2, Share2, Camera, Check, Flame, Clock,
+    ChefHat, Star, Plus, BookOpen,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getNutritionCache, setNutritionCache, logFood } from '../../services/nutrition';
 import { getDiet, deleteDiet } from '../../services/diet';
@@ -8,245 +11,193 @@ import { setActiveDiet } from '../../services/user';
 import { shareToCommunity } from '../../services/social';
 import { getDietImage, seedFrom, getImageOverride, setImageOverride, PRESET_DIET_PHOTOS } from '../../lib/imageUtils';
 
+// Template diets (no backend required)
+const TEMPLATE_DIETS: Record<string, any> = {
+    'keto-basic': {
+        name: 'Keto para Principiantes',
+        description: 'La dieta keto reduce los carbohidratos al mínimo para que tu cuerpo entre en cetosis y queme grasa como combustible principal. Ideal para perder peso y mejorar la energía.',
+        daily_calories_target: 1800,
+        prep_time: null,
+        difficulty: 'Principiante',
+        tags: ['Keto', 'Baja en carbohidratos', 'Alta en grasa', 'Sin gluten'],
+        macros: { protein: 135, carbs: 22, fat: 150 },
+        ingredients: [
+            'Huevos (6 ud.)', 'Aguacate (2 ud.)', 'Salmón fresco (400 g)', 'Queso cheddar (150 g)',
+            'Tocino sin azúcar (200 g)', 'Espinacas (200 g)', 'Aceite de coco (4 cdas.)',
+            'Almendras (80 g)', 'Crema agria (100 g)',
+        ],
+        steps: [
+            'Desayuno: prepara huevos revueltos con tocino en aceite de coco.',
+            'Media mañana: un puñado de almendras con queso cheddar.',
+            'Almuerzo: ensalada de espinacas con salmón a la plancha y aguacate.',
+            'Cena: salmón al horno con espárragos salteados en mantequilla.',
+            'Ajusta las porciones según tu objetivo calórico diario.',
+        ],
+        meals: [
+            { name: 'Desayuno', foods: [{ name: 'Huevos revueltos', calories: 220, protein: 18, carbs: 1, fat: 16 }, { name: 'Aguacate ½', calories: 120, protein: 1, carbs: 3, fat: 11 }] },
+            { name: 'Almuerzo', foods: [{ name: 'Ensalada de pollo', calories: 380, protein: 42, carbs: 6, fat: 18 }, { name: 'Aceite de oliva', calories: 90, protein: 0, carbs: 0, fat: 10 }] },
+            { name: 'Cena', foods: [{ name: 'Salmón al horno', calories: 420, protein: 45, carbs: 0, fat: 24 }, { name: 'Espárragos', calories: 40, protein: 4, carbs: 4, fat: 0 }] },
+        ],
+    },
+    'mediterranean': {
+        name: 'Dieta Mediterránea',
+        description: 'Inspirada en los países del Mediterráneo, esta dieta se basa en aceite de oliva, frutas, verduras, legumbres y pescado. Científicamente avalada para mejorar la salud cardiovascular.',
+        daily_calories_target: 2100,
+        prep_time: null,
+        difficulty: 'Principiante',
+        tags: ['Mediterránea', 'Equilibrada', 'Saludable', 'Corazón sano'],
+        macros: { protein: 105, carbs: 262, fat: 70 },
+        ingredients: [
+            'Aceite de oliva virgen extra (4 cdas.)', 'Tomates cherry (300 g)', 'Lentejas (200 g)',
+            'Pechuga de pollo (400 g)', 'Salmón (300 g)', 'Pan integral (4 rebanadas)',
+            'Frutos secos mixtos (60 g)', 'Queso feta (80 g)', 'Aceitunas (50 g)',
+        ],
+        steps: [
+            'Desayuno: tostada integral con tomate natural rallado y aceite de oliva.',
+            'Media mañana: frutos secos y una pieza de fruta.',
+            'Almuerzo: lentejas guisadas con verduras o ensalada griega con feta.',
+            'Merienda: yogur natural con miel.',
+            'Cena: pescado a la plancha con verduras asadas y pan integral.',
+        ],
+        meals: [
+            { name: 'Desayuno', foods: [{ name: 'Tostada con tomate', calories: 220, protein: 8, carbs: 34, fat: 6 }, { name: 'Café con leche', calories: 60, protein: 3, carbs: 5, fat: 2 }] },
+            { name: 'Almuerzo', foods: [{ name: 'Lentejas guisadas', calories: 520, protein: 28, carbs: 70, fat: 8 }, { name: 'Manzana', calories: 80, protein: 0, carbs: 20, fat: 0 }] },
+            { name: 'Cena', foods: [{ name: 'Salmón a la plancha', calories: 380, protein: 42, carbs: 0, fat: 22 }, { name: 'Ensalada mixta', calories: 120, protein: 3, carbs: 12, fat: 7 }] },
+        ],
+    },
+    'high-protein': {
+        name: 'Alta en Proteínas',
+        description: 'Diseñada para maximizar el desarrollo muscular y la recuperación. Alta en proteínas magras, moderada en carbohidratos complejos y baja en grasas saturadas.',
+        daily_calories_target: 2400,
+        prep_time: null,
+        difficulty: 'Intermedio',
+        tags: ['Alta proteína', 'Músculo', 'Fitness', 'Rica en proteínas'],
+        macros: { protein: 210, carbs: 240, fat: 67 },
+        ingredients: [
+            'Pechugas de pollo (600 g)', 'Claras de huevo (10 ud.)', 'Atún al natural (4 latas)',
+            'Proteína en polvo (2 dosis)', 'Arroz integral (300 g)', 'Brócoli (400 g)',
+            'Batata (300 g)', 'Requesón 0% (200 g)', 'Leche desnatada (500 ml)',
+        ],
+        steps: [
+            'Desayuno: tortilla de claras de huevo con avena y leche.',
+            'Media mañana: batido de proteínas con leche desnatada.',
+            'Almuerzo: pechuga de pollo con arroz integral y brócoli.',
+            'Merienda: requesón con fruta o atún con tostadas.',
+            'Cena: pechuga o atún con batata asada y verduras.',
+        ],
+        meals: [
+            { name: 'Desayuno', foods: [{ name: 'Tortilla de claras', calories: 280, protein: 42, carbs: 4, fat: 8 }, { name: 'Avena con leche', calories: 280, protein: 12, carbs: 42, fat: 5 }] },
+            { name: 'Almuerzo', foods: [{ name: 'Pollo con arroz', calories: 580, protein: 65, carbs: 58, fat: 8 }, { name: 'Brócoli', calories: 55, protein: 5, carbs: 9, fat: 0 }] },
+            { name: 'Cena', foods: [{ name: 'Atún con batata', calories: 420, protein: 52, carbs: 38, fat: 6 }] },
+        ],
+    },
+};
+
 export function DietDetailsPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user, updateUser } = useAuth();
+
     const [diet, setDiet] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [dietToDelete, setDietToDelete] = useState<string | null>(null);
     const [showPhotoPicker, setShowPhotoPicker] = useState(false);
     const [, forceRender] = useState(0);
-    // Track logged foods: key = `${mealName}:${foodIndex}`
     const [loggedFoods, setLoggedFoods] = useState<Set<string>>(new Set());
-    // Live macro totals for today (from cache initially)
     const [todayMacros, setTodayMacros] = useState(() => getNutritionCache() || { total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0 });
 
     const fullDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const todayIndex = new Date().getDay();
-    const [selectedDay, setSelectedDay] = useState(fullDays[todayIndex]);
+    const [selectedDay, setSelectedDay] = useState(fullDays[new Date().getDay()]);
 
     useEffect(() => {
-        setSelectedDay(fullDays[new Date().getDay()]);
-    }, []);
-
-    useEffect(() => {
-        const fetchDiet = async () => {
+        const fetch = async () => {
             if (!id) return;
             try {
-
-                if (id === 'keto-basic') {
-                    setDiet({
-                        name: 'Keto para Principiantes',
-                        daily_calories_target: 1800,
-                        meals: [
-                            { name: 'Breakfast', foods: [{ name: 'Huevos revueltos', calories: 300 }, { name: 'Aguacate', calories: 160 }] },
-                            { name: 'Lunch', foods: [{ name: 'Ensalada de Pollo', calories: 450 }, { name: 'Aceite de Oliva', calories: 120 }] },
-                            { name: 'Dinner', foods: [{ name: 'Salmón al horno', calories: 500 }, { name: 'Espárragos', calories: 50 }] }
-                        ]
-                    });
-                } else if (id === 'mediterranean') {
-                    setDiet({
-                        name: 'Dieta Mediterránea',
-                        daily_calories_target: 2000,
-                        meals: [
-                            { name: 'Breakfast', foods: [{ name: 'Tostada con Tomate', calories: 250 }, { name: 'Café', calories: 10 }] },
-                            { name: 'Lunch', foods: [{ name: 'Lentejas guisadas', calories: 600 }, { name: 'Manzana', calories: 80 }] },
-                        ]
-                    });
-                } else if (id === 'high-protein') {
-                    setDiet({
-                        id: 'high-protein',
-                        name: 'Hiperproteica',
-                        daily_calories_target: 2500,
-                        description: 'Dieta rica en proteínas para el desarrollo muscular.',
-                        meals: []
-                    });
+                if (TEMPLATE_DIETS[id]) {
+                    setDiet({ id, ...TEMPLATE_DIETS[id] });
+                } else {
+                    setDiet(await getDiet(id));
                 }
-                else {
-                    const data = await getDiet(id!);
-                    setDiet(data);
-                }
-            } catch (error) {
-                console.error("Error fetching diet details", error);
-            } finally {
-                setLoading(false);
-            }
+            } catch (e) { console.error(e); }
+            finally { setLoading(false); }
         };
-        fetchDiet();
+        fetch();
     }, [id]);
 
     const handleSetActive = async () => {
         if (!user?.id || !id) return;
-        try {
-            await setActiveDiet(user.id, id);
-            if (updateUser) updateUser({ current_diet_id: id });
-            alert("¡Dieta seleccionada como principal!");
-        } catch (e) {
-            console.error("Error setting active diet", e);
-        }
+        await setActiveDiet(user.id, id);
+        if (updateUser) updateUser({ current_diet_id: id });
+        alert('¡Dieta seleccionada como principal!');
     };
 
-    const handleLogFood = async (food: any, mealName: string, foodKey: string) => {
-        if (loggedFoods.has(foodKey)) return; // already logged
-        try {
-            const cal = Math.round(food.calories || 0);
-            const protein = food.protein || 0;
-            const carbs = food.carbs || 0;
-            const fat = food.fat || 0;
-
-            // Optimistic UI update
-            setLoggedFoods(prev => new Set([...prev, foodKey]));
-            setTodayMacros((prev: any) => ({
-                total_calories: (prev.total_calories || 0) + cal,
-                total_protein:  (prev.total_protein  || 0) + protein,
-                total_carbs:    (prev.total_carbs    || 0) + carbs,
-                total_fat:      (prev.total_fat      || 0) + fat,
-            }));
-
-            // Also update nutrition cache so Home picks it up
-            const cache = getNutritionCache() || { total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0 };
-            setNutritionCache({
-                ...cache,
-                total_calories: (cache.total_calories || 0) + cal,
-                total_protein:  (cache.total_protein  || 0) + protein,
-                total_carbs:    (cache.total_carbs    || 0) + carbs,
-                total_fat:      (cache.total_fat      || 0) + fat,
-            });
-
-            if (user?.id) {
-                await logFood(user.id, { food_name: food.name, calories: cal, protein, carbs, fat, meal_name: mealName });
-            }
-        } catch (e) {
-            console.error(e);
-            // Rollback optimistic update
-            setLoggedFoods(prev => { const s = new Set(prev); s.delete(foodKey); return s; });
-            alert('Error al registrar el alimento');
-        }
+    const handleLogFood = async (food: any, mealName: string, key: string) => {
+        if (loggedFoods.has(key)) return;
+        const cal = Math.round(food.calories || 0);
+        setLoggedFoods(prev => new Set([...prev, key]));
+        setTodayMacros((prev: any) => ({
+            total_calories: (prev.total_calories || 0) + cal,
+            total_protein:  (prev.total_protein  || 0) + (food.protein || 0),
+            total_carbs:    (prev.total_carbs    || 0) + (food.carbs   || 0),
+            total_fat:      (prev.total_fat      || 0) + (food.fat     || 0),
+        }));
+        const cache = getNutritionCache() || { total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0 };
+        setNutritionCache({ ...cache,
+            total_calories: (cache.total_calories || 0) + cal,
+            total_protein:  (cache.total_protein  || 0) + (food.protein || 0),
+            total_carbs:    (cache.total_carbs    || 0) + (food.carbs   || 0),
+            total_fat:      (cache.total_fat      || 0) + (food.fat     || 0),
+        });
+        if (user?.id) await logFood(user.id, { food_name: food.name, calories: cal, protein: food.protein || 0, carbs: food.carbs || 0, fat: food.fat || 0, meal_name: mealName }).catch(console.error);
     };
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center text-foreground">Cargando...</div>;
-    if (!diet) return <div className="min-h-screen flex items-center justify-center text-foreground">Dieta no encontrada</div>;
+    if (loading) return <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--fg)' }}>Cargando…</div>;
+    if (!diet)   return <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--fg)' }}>No encontrada</div>;
 
     const isActive = user?.current_diet_id === id;
+    const isOwn    = diet.user_id === user?.id;
+    const heroImg  = getImageOverride(diet.id || diet.name) || getDietImage(diet.name, seedFrom(diet.id || diet.name), 800, 500);
 
-    const days = [
-        { id: 'Monday', label: 'L' },
-        { id: 'Tuesday', label: 'M' },
-        { id: 'Wednesday', label: 'X' },
-        { id: 'Thursday', label: 'J' },
-        { id: 'Friday', label: 'V' },
-        { id: 'Saturday', label: 'S' },
-        { id: 'Sunday', label: 'D' },
+    const isWeekly = diet?.weekly_plan?.length > 0;
+    const dayPlan  = isWeekly ? diet.weekly_plan.find((d: any) => d.day === selectedDay) : null;
+    const displayMeals: any[] = dayPlan?.meals || diet?.meals || [];
+
+    const dayButtons = [
+        { id: 'Monday', label: 'L' }, { id: 'Tuesday', label: 'M' }, { id: 'Wednesday', label: 'X' },
+        { id: 'Thursday', label: 'J' }, { id: 'Friday', label: 'V' }, { id: 'Saturday', label: 'S' }, { id: 'Sunday', label: 'D' },
     ];
 
-    const handleDeleteDietClick = () => {
-        if (!diet?.id) {
-            alert("Las plantillas del sistema no se pueden eliminar.");
-            return;
-        }
-        setDietToDelete(diet.id);
-    };
-
-    const confirmDeleteDiet = async () => {
-        if (!dietToDelete) return;
-        try {
-            await deleteDiet(dietToDelete);
-            navigate('/diet');
-        } catch (e) {
-            console.error(e);
-            alert("Error al eliminar la dieta");
-        } finally {
-            setDietToDelete(null);
-        }
-    };
-
-    const handleShareDiet = async () => {
-        if (!diet || !user) return;
-        try {
-            await shareToCommunity({
-                content_type: 'diet',
-                content_id: diet.id,
-                content_name: diet.name,
-                content_image: diet.image_url,
-                creator_id: user.id,
-                creator_name: user.username || user.email.split('@')[0],
-                creator_avatar: user.profilePicture,
-                created_at: new Date().toISOString(),
-            });
-            alert("¡Dieta compartida con la comunidad!");
-        } catch (e: any) {
-            console.error("Failed to share", e);
-            alert(e.response?.data?.detail || "Error al compartir la dieta. Quizás ya la has compartido.");
-        }
-    };
-
-    const deleteModal = dietToDelete && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-200">
-            <div className="bg-card w-full max-w-sm rounded-xl p-6 shadow-2xl border border-border">
-                <h3 className="text-xl font-bold mb-2 text-foreground">Eliminar Dieta</h3>
-                <p className="text-muted-foreground mb-6">¿Estás seguro de que deseas eliminar esta dieta permanentemente?</p>
-                <div className="flex gap-3 justify-end">
-                    <button
-                        onClick={() => setDietToDelete(null)}
-                        className="px-4 py-2 rounded-lg font-medium hover:bg-muted transition-colors text-foreground"
-                    >
-                        Cancelar
-                    </button>
-                    <button
-                        onClick={confirmDeleteDiet}
-                        className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium shadow-md transition-all"
-                    >
-                        Eliminar
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-
-    let displayMeals = diet?.meals || [];
-    let isWeekly = false;
-
-    if (diet?.weekly_plan && diet.weekly_plan.length > 0) {
-        isWeekly = true;
-        const dayPlan = diet.weekly_plan.find((d: any) => d.day === selectedDay);
-        displayMeals = dayPlan?.meals || [];
-    }
-
-    const totalCalories = displayMeals.reduce((acc: number, meal: any) =>
-        acc + (meal.foods?.reduce((fAcc: number, food: any) => fAcc + (food.calories || 0), 0) || 0), 0
-    ) || 0;
-
-    const heroImg = getImageOverride(diet.id || diet.name) ||
-        getDietImage(diet.name, seedFrom(diet.id || diet.name), 800, 400);
-
-    const iconBtnStyle: React.CSSProperties = {
+    const iconBtn: React.CSSProperties = {
         width: 36, height: 36, borderRadius: 11,
-        background: 'rgba(0,0,0,0.42)', border: '1px solid rgba(255,255,255,0.12)',
+        background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.12)',
         color: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer',
         backdropFilter: 'blur(8px)',
     };
 
-    return (
-        <div className="w-full text-foreground" style={{ background: 'var(--bg)', minHeight: '100dvh', paddingBottom: 80 }}>
+    const macros = diet.macros || {
+        protein: Math.round((diet.daily_calories_target || 2000) * 0.30 / 4),
+        carbs:   Math.round((diet.daily_calories_target || 2000) * 0.40 / 4),
+        fat:     Math.round((diet.daily_calories_target || 2000) * 0.30 / 9),
+    };
 
-            {/* Photo picker bottom sheet */}
+    return (
+        <div style={{ background: 'var(--bg)', minHeight: '100dvh', paddingBottom: 90 }}>
+
+            {/* Photo picker */}
             {showPhotoPicker && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                    <div style={{ width: '100%', maxWidth: 480, background: 'var(--card)', border: '1px solid var(--line-2)', borderRadius: '24px 24px 0 0', padding: '16px 16px 32px' }}>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                    <div style={{ width: '100%', maxWidth: 480, background: 'var(--card)', border: '1px solid var(--line-2)', borderRadius: '24px 24px 0 0', padding: '16px 16px 36px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>Choose cover photo</span>
-                            <button onClick={() => setShowPhotoPicker(false)} style={{ background: 'none', border: 0, color: 'var(--fg-dim)', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>×</button>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>Elegir foto de portada</span>
+                            <button onClick={() => setShowPhotoPicker(false)} style={{ background: 'none', border: 0, color: 'var(--fg-dim)', cursor: 'pointer', fontSize: 22 }}>×</button>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
                             {PRESET_DIET_PHOTOS.map(p => (
-                                <button key={p.id} onClick={() => { setImageOverride(diet.id || diet.name, p.url.replace('300', '800').replace('200', '400')); setShowPhotoPicker(false); forceRender(n => n + 1); }} style={{
-                                    padding: 0, border: '2px solid transparent', borderRadius: 12, overflow: 'hidden',
-                                    cursor: 'pointer', aspectRatio: '3/2',
-                                    backgroundImage: `url("${p.url}")`, backgroundSize: 'cover', backgroundPosition: 'center',
-                                }}>
-                                    <div style={{ width: '100%', height: '100%', background: 'rgba(0,0,0,0.25)', display: 'flex', alignItems: 'flex-end', padding: 6 }}>
-                                        <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{p.label}</span>
+                                <button key={p.id} onClick={() => { setImageOverride(diet.id || diet.name, p.url.replace('300','800').replace('200','500')); setShowPhotoPicker(false); forceRender(n=>n+1); }}
+                                    style={{ padding:0, border:'2px solid transparent', borderRadius:12, overflow:'hidden', cursor:'pointer', aspectRatio:'3/2',
+                                        backgroundImage:`url("${p.url}")`, backgroundSize:'cover', backgroundPosition:'center' }}>
+                                    <div style={{ width:'100%',height:'100%',background:'rgba(0,0,0,0.25)',display:'flex',alignItems:'flex-end',padding:5 }}>
+                                        <span style={{ fontSize:9,fontWeight:700,color:'#fff',textTransform:'uppercase',letterSpacing:'0.04em' }}>{p.label}</span>
                                     </div>
                                 </button>
                             ))}
@@ -255,185 +206,216 @@ export function DietDetailsPage() {
                 </div>
             )}
 
-            {/* Hero */}
-            <div style={{
-                height: 220, position: 'relative',
-                backgroundImage: `url("${heroImg}")`,
-                backgroundSize: 'cover', backgroundPosition: 'center',
-            }}>
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.3) 55%, transparent 100%)' }}/>
-                {/* Action bar */}
-                <div style={{ position: 'absolute', top: 16, left: 0, right: 0, padding: '0 16px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 5 }}>
-                    <button onClick={() => navigate(-1)} style={iconBtnStyle}><ArrowLeft size={18}/></button>
+            {/* Delete confirm */}
+            {dietToDelete && (
+                <div style={{ position:'fixed',inset:0,zIndex:300,background:'rgba(0,0,0,0.65)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24 }}>
+                    <div style={{ width:'100%',maxWidth:340,background:'var(--card)',border:'1px solid var(--line-2)',borderRadius:24,padding:'24px 20px' }}>
+                        <div style={{ fontSize:17,fontWeight:700,color:'var(--fg)',marginBottom:8 }}>Eliminar dieta</div>
+                        <div style={{ fontSize:13,color:'var(--fg-mute)',marginBottom:24 }}>Esta acción no se puede deshacer.</div>
+                        <div style={{ display:'flex',gap:10,justifyContent:'flex-end' }}>
+                            <button onClick={()=>setDietToDelete(null)} style={{ padding:'10px 18px',borderRadius:12,border:'1px solid var(--line-2)',background:'transparent',color:'var(--fg-mute)',fontWeight:600,fontSize:13,cursor:'pointer' }}>Cancelar</button>
+                            <button onClick={async()=>{ await deleteDiet(dietToDelete); navigate('/diet'); }} style={{ padding:'10px 18px',borderRadius:12,border:0,background:'#ef4444',color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer' }}>Eliminar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Hero image */}
+            <div style={{ height: 280, position: 'relative', backgroundImage: `url("${heroImg}")`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)' }}/>
+                {/* Top bar */}
+                <div style={{ position: 'absolute', top: 16, left: 0, right: 0, padding: '0 16px', display: 'flex', gap: 8, zIndex: 5 }}>
+                    <button onClick={() => navigate(-1)} style={iconBtn}><ArrowLeft size={18}/></button>
                     <div style={{ flex: 1 }}/>
-                    <button onClick={() => setShowPhotoPicker(true)} style={iconBtnStyle}><Camera size={15}/></button>
-                    {diet.user_id === user?.id && <>
-                        <button onClick={handleShareDiet} style={iconBtnStyle}><Share2 size={15}/></button>
-                        <button onClick={handleDeleteDietClick} style={{ ...iconBtnStyle, color: '#fca5a5' }}><Trash2 size={15}/></button>
+                    <button onClick={() => setShowPhotoPicker(true)} style={iconBtn}><Camera size={15}/></button>
+                    {isOwn && <>
+                        <button onClick={async () => {
+                            await shareToCommunity({ content_type: 'diet', content_id: diet.id, content_name: diet.name, content_image: diet.image_url, creator_id: user!.id, creator_name: user!.username, creator_avatar: user!.profilePicture, created_at: new Date().toISOString() });
+                            alert('¡Compartida con la comunidad!');
+                        }} style={iconBtn}><Share2 size={15}/></button>
+                        <button onClick={() => setDietToDelete(diet.id)} style={{ ...iconBtn, color: '#fca5a5' }}><Trash2 size={15}/></button>
                     </>}
                 </div>
-                {/* Title overlay */}
-                <div style={{ position: 'absolute', bottom: 16, left: 20, right: 20, zIndex: 2 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
-                        <div>
-                            <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.1 }}>{diet.name}</h1>
-                            {isWeekly && <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Weekly plan</p>}
-                        </div>
+                {/* Bottom overlay */}
+                <div style={{ position: 'absolute', bottom: 20, left: 20, right: 20, zIndex: 2 }}>
+                    <h1 style={{ fontSize: 24, fontWeight: 800, color: '#fff', margin: 0, lineHeight: 1.15 }}>{diet.name}</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
                         {isActive ? (
-                            <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--accent)', color: 'var(--accent-ink)', padding: '4px 10px', borderRadius: 6, whiteSpace: 'nowrap' }}>● ACTIVE</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--accent)', color: 'var(--accent-ink)', padding: '4px 10px', borderRadius: 6 }}>● ACTIVO</span>
                         ) : (
-                            <button onClick={handleSetActive} style={{ fontSize: 11, fontWeight: 700, background: 'rgba(255,255,255,0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '6px 14px', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(6px)' }}>
-                                USE
+                            <button onClick={handleSetActive} style={{ fontSize: 12, fontWeight: 700, background: 'rgba(255,255,255,0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.35)', padding: '6px 16px', borderRadius: 10, cursor: 'pointer', backdropFilter: 'blur(6px)' }}>
+                                Usar este plan
                             </button>
+                        )}
+                        {diet.rating && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.4)', padding: '4px 10px', borderRadius: 8 }}>
+                                <Star size={11} fill="#f59e0b" stroke="#f59e0b"/>{diet.rating}
+                            </span>
                         )}
                     </div>
                 </div>
             </div>
 
+            {/* Content */}
             <div style={{ padding: '20px 20px 0' }}>
 
-            {}
-            {isWeekly && (
-                <div className="flex justify-between mb-6 bg-card/30 p-1 rounded-2xl">
-                    {days.map(day => {
-                        const isToday = fullDays[new Date().getDay()] === day.id;
-                        return (
-                            <button
-                                key={day.id}
-                                onClick={() => setSelectedDay(day.id)}
-                                className={`size-10 rounded-xl flex flex-col items-center justify-center transition-all relative ${selectedDay === day.id
-                                    ? 'bg-primary text-white shadow-lg scale-110 z-10'
-                                    : 'text-muted-foreground hover:bg-white/5'
-                                    }`}
-                            >
-                                <span className="font-bold">{day.label}</span>
-                                {isToday && <span className="absolute bottom-1 w-1 h-1 rounded-full bg-current opacity-70"></span>}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-
-            {}
-            <div className="bg-card border border-border rounded-3xl p-6 mb-8 relative overflow-hidden transition-all duration-300">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-10 -mt-10" />
-                <div className="flex justify-between items-end relative z-10">
-                    <div>
-                        <p className="text-sm text-muted-foreground font-medium mb-1">
-                            Objetivo {isWeekly ? selectedDay : 'Diario'}
-                        </p>
-                        <p className="text-3xl font-black">{diet.daily_calories_target} <span className="text-lg text-muted-foreground font-normal">kcal</span></p>
-                    </div>
-                    <div className="text-right">
-                        <div className="flex items-center justify-end gap-1 text-orange-500 mb-1">
-                            <Flame className="size-4 fill-orange-500" />
-                            <span className="font-bold">{Math.round(totalCalories)}</span>
+                {/* Macro quick stats */}
+                <div style={{ display: 'flex', gap: 0, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden', marginBottom: 20 }}>
+                    {[
+                        { icon: <Flame size={18} color="var(--energy)"/>, value: diet.daily_calories_target || '—', label: 'kcal' },
+                        { icon: <Clock size={18} color="var(--data)"/>, value: diet.prep_time || '15-30', label: 'min/receta' },
+                        { icon: <ChefHat size={18} color="var(--recovery)"/>, value: diet.difficulty || 'Fácil', label: 'nivel' },
+                    ].map((s, i) => (
+                        <div key={i} style={{ flex: 1, padding: '14px 10px', textAlign: 'center', borderRight: i < 2 ? '1px solid var(--line)' : 'none' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{s.icon}</div>
+                            <div className="num" style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)' }}>{s.value}</div>
+                            <div style={{ fontSize: 10, color: 'var(--fg-dim)', marginTop: 2 }}>{s.label}</div>
                         </div>
-                        <p className="text-xs text-muted-foreground">Planificado</p>
-                    </div>
+                    ))}
                 </div>
-                {}
-                <div className="mt-4 h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                        className="h-full bg-linear-to-r from-primary to-purple-500 transition-all duration-500"
-                        style={{ width: `${Math.min(100, (totalCalories / diet.daily_calories_target) * 100)}%` }}
-                    />
-                </div>
-            </div>
 
-            {/* Live macro tracker for today */}
-            {(todayMacros.total_calories > 0 || loggedFoods.size > 0) && (
-                <div style={{ marginBottom: 16, padding: '12px 14px', background: 'color-mix(in oklch, var(--accent) 8%, var(--card))', border: '1px solid color-mix(in oklch, var(--accent) 22%, var(--line))', borderRadius: 14 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.06em' }}>TODAY LOGGED</span>
-                        <span className="num" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{Math.round(todayMacros.total_calories)} kcal</span>
+                {/* Description */}
+                {diet.description && (
+                    <p style={{ fontSize: 14, color: 'var(--fg-mute)', lineHeight: 1.65, marginBottom: 20 }}>{diet.description}</p>
+                )}
+
+                {/* Tags */}
+                {diet.tags?.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+                        {diet.tags.map((tag: string) => (
+                            <span key={tag} style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-mute)', background: 'var(--card-2)', border: '1px solid var(--line)', borderRadius: 999, padding: '5px 12px' }}>{tag}</span>
+                        ))}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                )}
+
+                {/* Macro breakdown */}
+                <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, padding: '16px', marginBottom: 24 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)', marginBottom: 14 }}>Macronutrientes / día</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
                         {[
-                            { label: 'Protein', val: Math.round(todayMacros.total_protein || 0), color: 'var(--energy)' },
-                            { label: 'Carbs',   val: Math.round(todayMacros.total_carbs   || 0), color: 'var(--data)' },
-                            { label: 'Fats',    val: Math.round(todayMacros.total_fat     || 0), color: 'var(--recovery)' },
+                            { label: 'Proteína', value: macros.protein, unit: 'g', color: 'var(--energy)' },
+                            { label: 'Carbs',    value: macros.carbs,   unit: 'g', color: 'var(--data)' },
+                            { label: 'Grasas',   value: macros.fat,     unit: 'g', color: 'var(--recovery)' },
                         ].map(m => (
-                            <div key={m.label} style={{ textAlign: 'center', background: 'var(--card-2)', borderRadius: 10, padding: '6px 0' }}>
-                                <div className="num" style={{ fontSize: 15, fontWeight: 700, color: m.color }}>{m.val}g</div>
-                                <div style={{ fontSize: 9, color: 'var(--fg-dim)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{m.label}</div>
+                            <div key={m.label} style={{ background: 'var(--card-2)', borderRadius: 12, padding: '12px 10px', textAlign: 'center' }}>
+                                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: m.color, marginBottom: 6 }}>{m.label.toUpperCase()}</div>
+                                <div className="num" style={{ fontSize: 20, fontWeight: 800, color: 'var(--fg)' }}>{m.value}<span style={{ fontSize: 11, color: 'var(--fg-dim)', fontWeight: 400 }}>{m.unit}</span></div>
                             </div>
                         ))}
                     </div>
                 </div>
-            )}
 
-            {}
-            <div className="space-y-6">
-                {displayMeals.map((meal: any, idx: number) => (
-                    <div key={idx} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${idx * 100}ms` }}>
-                        <h3 className="font-bold text-lg capitalize mb-3 flex items-center gap-2">
-                            <ChefHat className="size-5 text-primary" />
-                            {meal.name === 'breakfast' ? 'Desayuno' :
-                                meal.name === 'lunch' ? 'Comida' :
-                                    meal.name === 'dinner' ? 'Cena' :
-                                        meal.name === 'snack' ? 'Snack' : meal.name}
-                        </h3>
-                        {meal.foods?.length > 0 ? (
-                            <div className="space-y-3">
-                                {meal.foods.map((food: any, fIdx: number) => {
-                                    const foodKey = `${meal.name}:${fIdx}`;
-                                    const logged = loggedFoods.has(foodKey);
-                                    return (
-                                        <div key={fIdx} style={{
-                                            background: logged ? 'color-mix(in oklch, var(--accent) 8%, var(--card))' : 'var(--card)',
-                                            border: `1px solid ${logged ? 'color-mix(in oklch, var(--accent) 28%, var(--line))' : 'var(--line)'}`,
-                                            borderRadius: 14, padding: '10px 12px',
-                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                            transition: 'all 0.2s',
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                                                {food.image_url ? (
-                                                    <img src={food.image_url} alt="" style={{ width: 36, height: 36, borderRadius: 9, objectFit: 'cover', flexShrink: 0 }} />
-                                                ) : (
-                                                    <div style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--card-2)', flexShrink: 0, display: 'grid', placeItems: 'center' }}>
-                                                        <ChefHat size={14} color="var(--fg-dim)"/>
-                                                    </div>
-                                                )}
-                                                <div style={{ minWidth: 0 }}>
-                                                    <p style={{ fontSize: 13, fontWeight: 600, color: logged ? 'var(--accent)' : 'var(--fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{food.name}</p>
-                                                    <p className="num" style={{ fontSize: 10, color: 'var(--fg-dim)', margin: 0 }}>
-                                                        P {Math.round(food.protein||0)}g · C {Math.round(food.carbs||0)}g · G {Math.round(food.fat||0)}g
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                                                <div style={{ textAlign: 'right' }}>
-                                                    <p className="num" style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)', margin: 0 }}>{Math.round(food.calories)}</p>
-                                                    <p style={{ fontSize: 9, color: 'var(--fg-dim)', margin: 0 }}>kcal</p>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleLogFood(food, meal.name, foodKey)}
-                                                    disabled={logged}
-                                                    style={{
-                                                        width: 32, height: 32, borderRadius: '50%', border: 0,
-                                                        background: logged ? 'var(--accent)' : 'color-mix(in oklch, var(--accent) 16%, transparent)',
-                                                        color: logged ? 'var(--accent-ink)' : 'var(--accent)',
-                                                        display: 'grid', placeItems: 'center',
-                                                        cursor: logged ? 'default' : 'pointer',
-                                                        transition: 'all 0.2s',
-                                                    }}
-                                                >
-                                                    {logged ? <Check size={14}/> : <Plus size={14}/>}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground italic pl-7 border-l-2 border-muted py-1">Sin alimentos para {isWeekly ? selectedDay : 'hoy'}</p>
-                        )}
+                {/* Ingredients */}
+                {diet.ingredients?.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <BookOpen size={18} color="var(--accent)"/> Ingredientes
+                        </div>
+                        <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden' }}>
+                            {diet.ingredients.map((ing: string, i: number) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', borderBottom: i < diet.ingredients.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }}/>
+                                    <span style={{ fontSize: 14, color: 'var(--fg)' }}>{ing}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                ))}
+                )}
+
+                {/* Steps / Instructions */}
+                {diet.steps?.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <ChefHat size={18} color="var(--accent)"/> Instrucciones
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {diet.steps.map((step: string, i: number) => (
+                                <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent)', color: 'var(--accent-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                                    <p style={{ fontSize: 14, color: 'var(--fg-mute)', lineHeight: 1.6, margin: 0, paddingTop: 4 }}>{step}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Day selector (weekly plans) */}
+                {isWeekly && (
+                    <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)', marginBottom: 12 }}>Plan semanal</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 16, padding: 4, marginBottom: 16 }}>
+                            {dayButtons.map(d => {
+                                const isToday = fullDays[new Date().getDay()] === d.id;
+                                return (
+                                    <button key={d.id} onClick={() => setSelectedDay(d.id)} style={{
+                                        flex: 1, height: 40, borderRadius: 12, border: 'none', cursor: 'pointer',
+                                        background: selectedDay === d.id ? 'var(--accent)' : 'transparent',
+                                        color: selectedDay === d.id ? 'var(--accent-ink)' : isToday ? 'var(--accent)' : 'var(--fg-mute)',
+                                        fontWeight: 700, fontSize: 13,
+                                    }}>{d.label}</button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Logged today summary */}
+                {loggedFoods.size > 0 && (
+                    <div style={{ background: 'color-mix(in oklch, var(--energy) 10%, var(--card))', border: '1px solid color-mix(in oklch, var(--energy) 30%, var(--line))', borderRadius: 16, padding: '14px 16px', marginBottom: 20 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--energy)', marginBottom: 6 }}>REGISTRADO HOY</div>
+                        <div className="num" style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)' }}>
+                            {todayMacros.total_calories} <span style={{ fontSize: 13, color: 'var(--fg-mute)', fontWeight: 400 }}>kcal totales</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Meals */}
+                {displayMeals.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', marginBottom: 14 }}>Comidas del día</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            {displayMeals.map((meal: any, mIdx: number) => (
+                                <div key={mIdx}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--accent)', background: 'color-mix(in oklch, var(--accent) 14%, transparent)', padding: '4px 10px', borderRadius: 6 }}>{(meal.name || '').toUpperCase()}</span>
+                                    </div>
+                                    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden' }}>
+                                        {(meal.foods || []).map((food: any, fIdx: number) => {
+                                            const key = `${mIdx}:${fIdx}`;
+                                            const logged = loggedFoods.has(key);
+                                            return (
+                                                <div key={fIdx} style={{
+                                                    display: 'flex', alignItems: 'center', gap: 12,
+                                                    padding: '13px 16px',
+                                                    borderBottom: fIdx < (meal.foods?.length || 0) - 1 ? '1px solid var(--line)' : 'none',
+                                                    background: logged ? 'color-mix(in oklch, var(--energy) 8%, transparent)' : 'transparent',
+                                                }}>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontSize: 14, fontWeight: 600, color: logged ? 'var(--fg-mute)' : 'var(--fg)', textDecoration: logged ? 'line-through' : 'none' }}>{food.name}</div>
+                                                        <div style={{ display: 'flex', gap: 10, marginTop: 3 }}>
+                                                            <span style={{ fontSize: 11, color: 'var(--energy)', display: 'flex', alignItems: 'center', gap: 3 }}><Flame size={10}/>{food.calories} kcal</span>
+                                                            {food.protein > 0 && <span style={{ fontSize: 11, color: 'var(--fg-dim)' }}>P: {food.protein}g</span>}
+                                                            {food.carbs > 0   && <span style={{ fontSize: 11, color: 'var(--fg-dim)' }}>C: {food.carbs}g</span>}
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => handleLogFood(food, meal.name, key)} style={{
+                                                        width: 34, height: 34, borderRadius: 10, border: `1px solid ${logged ? 'var(--energy)' : 'var(--line-2)'}`,
+                                                        background: logged ? 'var(--energy)' : 'transparent',
+                                                        color: logged ? '#fff' : 'var(--fg-dim)', cursor: logged ? 'default' : 'pointer',
+                                                        display: 'grid', placeItems: 'center', flexShrink: 0,
+                                                    }}>
+                                                        {logged ? <Check size={16}/> : <Plus size={16}/>}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
-            {deleteModal}
-            </div>{/* end padding wrapper */}
         </div>
     );
 }
