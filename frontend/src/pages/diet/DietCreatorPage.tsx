@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Plus, Trash2, Save } from 'lucide-react';
 import { createDiet, clearDietsCache } from '../../services/diet';
 import { useAuth } from '../../context/AuthContext';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 
 import { useDebounce } from '../../hooks/useDebounce';
 
@@ -58,14 +56,25 @@ export function DietCreatorPage() {
 
             setIsSearching(true);
             try {
-                const snap = await getDocs(query(
-                    collection(db, 'foods'),
-                    where('name', '>=', debouncedSearchTerm),
-                    where('name', '<=', debouncedSearchTerm + ''),
-                ));
-                setSearchResults(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                const res = await fetch(
+                    `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(debouncedSearchTerm)}&json=1&page_size=12&action=process&fields=product_name,product_name_es,brands,nutriments,image_front_small_url`
+                );
+                const data = await res.json();
+                const mapped = (data.products ?? [])
+                    .filter((p: any) => p.product_name)
+                    .map((p: any) => ({
+                        id: Math.random().toString(),
+                        name: p.product_name_es || p.product_name,
+                        brand: p.brands || '',
+                        calories: Math.round(p.nutriments?.['energy-kcal_100g'] ?? p.nutriments?.['energy-kcal'] ?? 0),
+                        protein:  Math.round((p.nutriments?.proteins_100g        ?? 0) * 10) / 10,
+                        carbs:    Math.round((p.nutriments?.carbohydrates_100g   ?? 0) * 10) / 10,
+                        fat:      Math.round((p.nutriments?.fat_100g             ?? 0) * 10) / 10,
+                        image_url: p.image_front_small_url || '',
+                    }));
+                setSearchResults(mapped);
             } catch (error) {
-                console.error("Error searching food:", error);
+                console.error('Error searching food:', error);
                 setSearchResults([]);
             } finally {
                 setIsSearching(false);
