@@ -67,7 +67,7 @@ export function HomePage() {
     const totalCalories = nutrition?.total_calories || 0;
     const goalCalories = nutrition?.goal_calories || 2000;
     const steps = stats?.steps || 0;
-    const caloriesBurned = stats?.calories_burned || 0;
+
     const xp = (user as any)?.xp || 0;
     const level = (user as any)?.level || 1;
     const streak = stats?.streak_days || 0;
@@ -218,10 +218,9 @@ export function HomePage() {
                                 </Link>
                             </Card>
                         ) : routines.map(r => {
-                            const dayCount = r.exercises?.reduce((acc: number, ex: any) => {
-                                const days = new Set(r.exercises.map((e: any) => e.day_of_week));
-                                return days.size;
-                            }, 0) || r.weekly_plan?.filter((d: any) => d.exercises?.length > 0).length || 0;
+                            const dayCount = r.exercises
+                                ? new Set(r.exercises.map((e: any) => e.day_of_week)).size
+                                : r.weekly_plan?.filter((d: any) => d.exercises?.length > 0).length || 0;
                             const tags = (r.exercises || []).slice(0, 3).map((ex: any) => ex.exercise?.muscle_group || ex.exercise?.name || '').filter(Boolean);
                             const pct = featuredRoutineId === r.id ? 0.55 : 0.2;
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getScheduledWorkouts, getWorkoutById } from '../../services/tracking';
+import { getWorkoutById } from '../../services/tracking';
 import { useAuth } from '../../context/AuthContext';
 import { ChevronLeft, Timer, Flame, Dumbbell, Star, TrendingUp } from 'lucide-react';
 

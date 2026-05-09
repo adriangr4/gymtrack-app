@@ -6,7 +6,6 @@ import api from '../../api/client';
 
 export function PersonalDataPage() {
     const navigate = useNavigate();
-    const [loading, setLoading] = useState(true);
     const [weightHistory, setWeightHistory] = useState<any[]>([]);
     const [currentWeight, setCurrentWeight] = useState('');
     const [height, setHeight] = useState('');
@@ -27,8 +26,6 @@ export function PersonalDataPage() {
                 calculateBMI(dashboardRes.data.current_weight, dashboardRes.data.height);
             } catch (error) {
                 console.error("Error fetching personal data", error);
-            } finally {
-                setLoading(false);
             }
         };
         fetchData();
