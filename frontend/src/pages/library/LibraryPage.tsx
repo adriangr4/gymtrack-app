@@ -174,7 +174,7 @@ export function LibraryPage() {
                             {isCurrent && <span className="pill" style={{ background: 'rgba(0,0,0,0.45)', borderColor: 'transparent', color: '#fff' }}>● ACTIVE</span>}
                             {isPredefined && (
                                 <span className="pill" style={{ background: 'var(--accent)', color: 'var(--accent-ink)', borderColor: 'transparent', fontSize: 9 }}>
-                                    ★ GymTrack Official
+                                    ★ Lyfter Official
                                 </span>
                             )}
                             {selected.difficulty && (

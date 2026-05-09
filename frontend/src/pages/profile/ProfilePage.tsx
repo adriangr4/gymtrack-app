@@ -38,6 +38,7 @@ export function ProfilePage() {
     const [stats, setStats] = useState<any>(getDashboardStatsCache());
     const [showRanks, setShowRanks] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [bannerImage, setBannerImage] = useState<string | null>(() => localStorage.getItem('lyfter_banner') || null);
     const [activeTab, setActiveTab] = useState<'summary' | 'history'>('summary');
     const [workouts, setWorkouts] = useState<any[]>(() => getScheduledWorkoutsCache() || []);
     const [routinesMap, setRoutinesMap] = useState<Record<string, any>>({});
@@ -90,10 +91,39 @@ export function ProfilePage() {
 
             {/* Header banner */}
             <div style={{ position: 'relative', height: 140, marginBottom: -50 }}>
-                <div className="mesh-hero" style={{
-                    position: 'absolute', inset: 0,
-                    '--mesh-a': 'oklch(0.72 0.18 340)', '--mesh-b': 'oklch(0.78 0.20 128)',
-                } as React.CSSProperties}/>
+                {bannerImage ? (
+                    <div style={{ position: 'absolute', inset: 0, backgroundImage: `url("${bannerImage}")`, backgroundSize: 'cover', backgroundPosition: 'center' }}/>
+                ) : (
+                    <div className="mesh-hero" style={{
+                        position: 'absolute', inset: 0,
+                        '--mesh-a': 'oklch(0.72 0.18 340)', '--mesh-b': 'oklch(0.78 0.20 128)',
+                    } as React.CSSProperties}/>
+                )}
+                {isEditing && (
+                    <label style={{
+                        position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)',
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255,255,255,0.18)', borderRadius: 999,
+                        padding: '6px 14px', color: '#fff', fontSize: 12, fontWeight: 600,
+                        cursor: 'pointer', zIndex: 4,
+                    }}>
+                        <Camera size={13}/> Change banner
+                        <input type="file" accept="image/*" style={{ display: 'none' }}
+                            onChange={e => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                    const result = reader.result as string;
+                                    setBannerImage(result);
+                                    localStorage.setItem('lyfter_banner', result);
+                                };
+                                reader.readAsDataURL(f);
+                            }}
+                        />
+                    </label>
+                )}
                 <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 8, zIndex: 5 }} ref={settingsRef}>
                     <button onClick={toggleTheme} style={{
                         width: 34, height: 34, borderRadius: 11,
@@ -284,7 +314,7 @@ export function ProfilePage() {
             )}
 
             <div style={{ textAlign: 'center', padding: '24px 0 0', color: 'var(--fg-dim)', fontSize: 11 }}>
-                GymTrack v1.1.0 · Gamified
+                Lyfter v1.1.0 · Gamified
             </div>
 
             {showRanks && (

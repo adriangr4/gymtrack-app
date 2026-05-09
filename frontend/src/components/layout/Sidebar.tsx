@@ -19,7 +19,7 @@ export function Sidebar() {
                     <Dumbbell className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <span className="text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-                    GymTrack
+                    Lyfter
                 </span>
             </div>
 

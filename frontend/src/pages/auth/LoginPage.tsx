@@ -73,7 +73,7 @@ export function LoginPage() {
                         Welcome<br/>back.
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--fg-mute)' }}>
-                        Sign in to continue your <span style={{ color: 'var(--accent)', fontWeight: 600 }}>GymTrack</span> journey.
+                        Sign in to continue your <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Lyfter</span> journey.
                     </div>
                 </div>
 
