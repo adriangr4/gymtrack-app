@@ -30,12 +30,24 @@ export const getScheduledWorkoutsCache = (): any[] | null => {
 
 export const getScheduledWorkouts = async (userId?: string): Promise<any[]> => {
     if (!userId) return [];
-    const snap = await getDocs(query(
-        collection(db, 'scheduled_workouts'),
-        where('user_id', '==', userId),
-        orderBy('created_at', 'desc'),
-    ));
-    const workouts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let workouts: any[];
+    try {
+        const snap = await getDocs(query(
+            collection(db, 'scheduled_workouts'),
+            where('user_id', '==', userId),
+            orderBy('created_at', 'desc'),
+        ));
+        workouts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch {
+        // Fallback without orderBy if composite index missing
+        const snap = await getDocs(query(
+            collection(db, 'scheduled_workouts'),
+            where('user_id', '==', userId),
+        ));
+        workouts = snap.docs
+            .map(d => ({ id: d.id, ...d.data() } as any))
+            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
     localStorage.setItem(HISTORY_CACHE_KEY, JSON.stringify(workouts));
     return workouts;
 };

@@ -26,6 +26,8 @@ export function DietCreatorPage() {
         { isOpen: false, dietId: '', dietName: '' }
     );
     const [makeSystem, setMakeSystem] = useState(false);
+    const [prepTime, setPrepTime] = useState(30);
+    const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
 
     const [weeklyMeals, setWeeklyMeals] = useState<any>({
         Monday: { breakfast: [], lunch: [], dinner: [], snack: [] },
@@ -91,14 +93,20 @@ export function DietCreatorPage() {
         { id: 'snack', label: 'Snack' }
     ];
 
+    const [addedId, setAddedId] = useState<string | null>(null);
+
     const addFoodToMeal = (food: any) => {
+        const key = `${food.name}_${Date.now()}`;
         setWeeklyMeals((prev: any) => ({
             ...prev,
             [activeDay]: {
                 ...prev[activeDay],
-                [activeMeal]: [...prev[activeDay][activeMeal], { ...food, id: Math.random().toString() }]
+                [activeMeal]: [...prev[activeDay][activeMeal], { ...food, id: key }]
             }
         }));
+        setAddedId(food.name);
+        setTimeout(() => setAddedId(null), 1200);
+        setSearchTerm('');
     };
 
     const removeFoodFromMeal = (_mealId: string, foodIndex: number) => {
@@ -169,6 +177,8 @@ export function DietCreatorPage() {
                 meals: [],
                 weekly_plan: weeklyPlanPayload,
                 image_url: randomImage,
+                prep_time: prepTime,
+                difficulty,
             } as any, (user?.is_admin && makeSystem) ? 'system' : (user?.id ?? ''));
             clearDietsCache();
             if (created?.id) {
@@ -244,6 +254,34 @@ export function DietCreatorPage() {
             </div>
 
             {}
+            <div style={{ display:'flex', gap:10, marginBottom:16 }}>
+                <div style={{ flex:1, background:'var(--card)', border:'1px solid var(--line)', borderRadius:14, padding:'10px 14px' }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:'var(--fg-mute)', letterSpacing:'0.08em', marginBottom:4 }}>PREP (min)</div>
+                    <input
+                        type="number" min={5} max={240} step={5}
+                        value={prepTime}
+                        onChange={e => setPrepTime(Number(e.target.value))}
+                        style={{ width:'100%', background:'transparent', border:'none', outline:'none', fontSize:16, fontWeight:700, color:'var(--fg)' }}
+                    />
+                </div>
+                <div style={{ flex:2, background:'var(--card)', border:'1px solid var(--line)', borderRadius:14, padding:'10px 14px' }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:'var(--fg-mute)', letterSpacing:'0.08em', marginBottom:6 }}>DIFICULTAD</div>
+                    <div style={{ display:'flex', gap:6 }}>
+                        {(['easy','medium','hard'] as const).map(d => (
+                            <button key={d} onClick={() => setDifficulty(d)} style={{
+                                flex:1, padding:'4px 0', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
+                                border: difficulty === d ? '1px solid var(--accent)' : '1px solid var(--line)',
+                                background: difficulty === d ? 'color-mix(in oklch,var(--accent) 18%,var(--card))' : 'var(--card-2)',
+                                color: difficulty === d ? 'var(--accent)' : 'var(--fg-mute)',
+                            }}>
+                                {d === 'easy' ? 'Fácil' : d === 'medium' ? 'Media' : 'Difícil'}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {}
             <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2">
                 {mealTabs.map(tab => (
                     <button
@@ -274,6 +312,12 @@ export function DietCreatorPage() {
             </div>
 
             {}
+            {addedId && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, background:'color-mix(in oklch,var(--energy) 12%,var(--card))', border:'1px solid color-mix(in oklch,var(--energy) 35%,var(--line))', borderRadius:12, padding:'10px 14px', marginBottom:8 }}>
+                    <span style={{ fontSize:16 }}>✓</span>
+                    <span style={{ fontSize:13, fontWeight:700, color:'var(--energy)' }}>"{addedId}" añadido</span>
+                </div>
+            )}
             {searchResults.length > 0 && (
                 <div className="mb-8 space-y-2 max-h-60 overflow-y-auto bg-card/50 rounded-2xl p-2 border border-border">
                     <p className="text-xs font-bold text-muted-foreground px-2 mb-1">Resultados de búsqueda</p>

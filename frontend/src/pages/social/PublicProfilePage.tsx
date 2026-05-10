@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, UserCheck, UserPlus, Dumbbell, ChefHat, Loader2 } from 'lucide-react';
+import { ArrowLeft, Star, UserCheck, UserPlus, Dumbbell, ChefHat, Loader2, Bookmark, X } from 'lucide-react';
 import {
-    getPublicProfile, getUserPosts, followUser, unfollowUser,
+    getPublicProfile, getUserPosts, followUser, unfollowUser, importContent,
     type PublicUserProfile, type Post
 } from '../../services/social';
+import { clearDietsCache } from '../../services/diet';
+import { clearRoutineCache } from '../../services/routines';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
 
@@ -18,6 +20,22 @@ export function PublicProfilePage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'routine' | 'diet'>('routine');
     const [followLoading, setFollowLoading] = useState(false);
+    const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+    const [importing, setImporting] = useState(false);
+    const [toast, setToast] = useState<string | null>(null);
+
+    const handleImport = async (post: Post) => {
+        if (!currentUser) return;
+        setImporting(true);
+        try {
+            await importContent(post.content_type, post.content_id, currentUser.id, currentUser.username, currentUser.profilePicture);
+            if (post.content_type === 'diet') clearDietsCache(); else clearRoutineCache();
+            setToast('¡Importado correctamente!');
+            setTimeout(() => setToast(null), 2500);
+            setSelectedPost(null);
+        } catch { setToast('Error al importar'); setTimeout(() => setToast(null), 2000); }
+        finally { setImporting(false); }
+    };
 
     useEffect(() => {
         if (userId && currentUser?.id && userId === currentUser.id) {
@@ -195,7 +213,8 @@ export function PublicProfilePage() {
                             const avgRating = post.rating_count > 0 ? (post.rating_sum / post.rating_count).toFixed(1) : '−';
 
                             return (
-                                <div key={post.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                                <div key={post.id} className="bg-card border border-border rounded-2xl overflow-hidden cursor-pointer"
+                                    onClick={() => setSelectedPost(post)}>
                                     <div
                                         className="aspect-square bg-cover bg-center"
                                         style={{ backgroundImage: `url("${post.content_image || fallback}")` }}
@@ -213,6 +232,40 @@ export function PublicProfilePage() {
                     </div>
                 )}
             </main>
+
+            {/* Post preview modal */}
+            {selectedPost && (
+                <div onClick={() => setSelectedPost(null)} style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(0,0,0,0.75)', backdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+                    <div onClick={e => e.stopPropagation()} style={{ width:'100%', maxWidth:380, background:'var(--card)', border:'1px solid var(--line-2)', borderRadius:24, overflow:'hidden' }}>
+                        <div style={{ height:200, backgroundImage:`url("${selectedPost.content_image || ''}")`, backgroundSize:'cover', backgroundPosition:'center', position:'relative' }}>
+                            <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top,rgba(0,0,0,0.7),transparent 50%)' }}/>
+                            <button onClick={() => setSelectedPost(null)} style={{ position:'absolute', top:12, right:12, width:32, height:32, borderRadius:10, background:'rgba(0,0,0,0.45)', border:'1px solid rgba(255,255,255,0.15)', color:'#fff', display:'grid', placeItems:'center', cursor:'pointer' }}>
+                                <X size={16}/>
+                            </button>
+                            <div style={{ position:'absolute', bottom:14, left:16 }}>
+                                <p style={{ fontSize:18, fontWeight:800, color:'#fff', margin:0 }}>{selectedPost.content_name}</p>
+                                <p style={{ fontSize:12, color:'rgba(255,255,255,0.75)', margin:'4px 0 0' }}>
+                                    {selectedPost.content_type === 'routine' ? '🏋️ Rutina' : '🥗 Plan de dieta'} · ❤️ {selectedPost.likes.length}
+                                </p>
+                            </div>
+                        </div>
+                        <div style={{ padding:16 }}>
+                            <button onClick={() => handleImport(selectedPost)} disabled={importing} style={{ width:'100%', padding:'14px', borderRadius:16, border:0, background:'var(--accent)', color:'var(--accent-ink)', fontSize:14, fontWeight:700, cursor:importing?'not-allowed':'pointer', opacity:importing?0.6:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                                <Bookmark size={16}/>
+                                {importing ? 'Importando…' : `Importar ${selectedPost.content_type === 'routine' ? 'rutina' : 'dieta'}`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast */}
+            {toast && (
+                <div style={{ position:'fixed', top:'calc(env(safe-area-inset-top, 0px) + 96px)', left:'50%', transform:'translateX(-50%)', zIndex:1000, background:'var(--card)', border:'1px solid var(--energy)', borderRadius:14, padding:'12px 20px', display:'flex', alignItems:'center', gap:8, boxShadow:'0 8px 32px rgba(0,0,0,0.4)', whiteSpace:'nowrap' }}>
+                    <span style={{ fontSize:16 }}>✓</span>
+                    <span style={{ fontSize:13, fontWeight:700, color:'var(--energy)' }}>{toast}</span>
+                </div>
+            )}
         </div>
     );
 }

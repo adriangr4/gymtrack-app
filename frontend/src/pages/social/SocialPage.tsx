@@ -29,7 +29,7 @@ function CommentDrawer({ post, onClose }: { post: Post; onClose: () => void }) {
         if (!text.trim() || !user) return;
         setSending(true);
         try {
-            const c = await addComment(post.id, text.trim(), user.id, user.username);
+            const c = await addComment(post.id, text.trim(), user.id, user.username, user.profilePicture);
             setComments(prev => [...prev, c]);
             setText('');
             setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -68,9 +68,13 @@ function CommentDrawer({ post, onClose }: { post: Post; onClose: () => void }) {
                         <div key={c.id} style={{ display: 'flex', gap: 10 }}>
                             <div style={{
                                 width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                                background: c.author_avatar ? `url("${c.author_avatar}") center/cover` : 'var(--card-2)',
+                                background: c.author_avatar ? `url("${c.author_avatar}") center/cover` : 'color-mix(in oklch,var(--accent) 22%,var(--card-2))',
                                 border: '1px solid var(--line)',
-                            }}/>
+                                display:'grid', placeItems:'center',
+                                fontSize: 12, fontWeight: 800, color:'var(--accent)',
+                            }}>
+                                {!c.author_avatar && (c.author_name?.[0] || '?').toUpperCase()}
+                            </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ background: 'var(--card-2)', borderRadius: '4px 14px 14px 14px', padding: '8px 12px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
@@ -87,7 +91,7 @@ function CommentDrawer({ post, onClose }: { post: Post; onClose: () => void }) {
                     <div ref={bottomRef}/>
                 </div>
                 <div style={{ padding: '10px 12px', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: 'var(--card-2)', border: '1px solid var(--line)' }}/>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: user?.profilePicture ? `url("${user.profilePicture}") center/cover` : 'var(--card-2)', border: '1px solid var(--line)' }}/>
                     <div style={{ flex: 1, height: 34, background: 'var(--card-2)', border: '1px solid var(--line)', borderRadius: 12, display: 'flex', alignItems: 'center', padding: '0 12px' }}>
                         <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
                             placeholder="Add a comment…" style={{ flex: 1, background: 'transparent', border: 0, outline: 'none', color: 'var(--fg)', fontSize: 12, fontFamily: 'inherit' }}/>
@@ -304,10 +308,13 @@ export function SocialPage() {
     const [fabOpen, setFabOpen] = useState(false);
     const [ratingModal, setRatingModal] = useState<RatingModalState>({ isOpen: false, postId: null, contentType: null, contentId: null, importAfterRating: false });
     const [hoverScore, setHoverScore] = useState(0);
+    const [selectedScore, setSelectedScore] = useState(0);
     const [commentDrawer, setCommentDrawer] = useState<Post | null>(null);
     const [importingId, setImportingId] = useState<string | null>(null);
     const [shareSelector, setShareSelector] = useState<'routine' | 'diet' | null>(null);
     const [previewPost, setPreviewPost] = useState<Post | null>(null);
+    const [toast, setToast] = useState<string | null>(null);
+    const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
     const fetchFeed = async (filter: 'global' | 'friends' = activeFilter) => {
         setLoading(true);
@@ -324,12 +331,13 @@ export function SocialPage() {
             return { ...p, likes: liked ? p.likes.filter(id => id !== user.id) : [...p.likes, user.id] };
         }));
         const post = posts.find(p => p.id === postId);
-        try { await toggleLike(postId, user.id, post?.likes ?? []); } catch { fetchFeed(); }
+        try { await toggleLike(postId, user.id, post?.likes ?? [], user.username, user.profilePicture); } catch { fetchFeed(); }
     };
 
     const handleDeletePost = async (postId: string) => {
         if (!window.confirm('Delete this post?')) return;
-        try { await deletePost(postId); setPosts(cur => cur.filter(p => p.id !== postId)); } catch { alert('Error'); }
+        try { await deletePost(postId); setPosts(cur => cur.filter(p => p.id !== postId)); showToast('Publicación eliminada'); }
+        catch { showToast('Error al eliminar'); }
     };
 
     const handleImport = async (post: Post) => {
@@ -337,10 +345,10 @@ export function SocialPage() {
         setImportingId(post.id);
         try {
             await importContent(post.content_type, post.content_id, user.id, user.username, user.profilePicture);
-            if (post.content_type === 'diet') { clearDietsCache(); alert('¡Importado! Ya puedes verlo en tus dietas.'); }
-            else { clearRoutineCache(); alert('¡Importado! Ya puedes verlo en tus rutinas.'); }
+            if (post.content_type === 'diet') { clearDietsCache(); showToast('¡Dieta importada correctamente!'); }
+            else { clearRoutineCache(); showToast('¡Rutina importada correctamente!'); }
         } catch (e: any) {
-            alert(`Error al importar: ${e?.message ?? ''}`);
+            showToast(`Error al importar: ${e?.message ?? ''}`);
         } finally { setImportingId(null); }
     };
 
@@ -349,17 +357,18 @@ export function SocialPage() {
         if (!postId || !contentType || !contentId) return;
         setRatingModal({ isOpen: false, postId: null, contentType: null, contentId: null, importAfterRating: false });
         setHoverScore(0);
+        setSelectedScore(0);
         try {
             await ratePost(postId, score);
             if (importAfterRating && user) {
                 try {
                     await importContent(contentType, contentId, user.id, user.username, user.profilePicture);
                     if (contentType === 'diet') clearDietsCache(); else clearRoutineCache();
-                    alert('¡Valorado e importado!');
-                } catch { alert('Valoración guardada. Pulsa Importar de nuevo.'); }
-            } else { alert('¡Valorado!'); }
-        } catch (e: any) {
-            alert('Error al valorar');
+                    showToast('¡Valorado e importado!');
+                } catch { showToast('Valoración guardada. Pulsa Importar de nuevo.'); }
+            } else { showToast('¡Valorado!'); }
+        } catch {
+            showToast('Error al valorar');
         }
     };
 
@@ -500,7 +509,7 @@ export function SocialPage() {
 
                             {/* Comment input */}
                             <div style={{ padding: '0 14px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: 'var(--card-2)', border: '1px solid var(--line)' }}/>
+                                <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: user?.profilePicture ? `url("${user.profilePicture}") center/cover` : 'var(--card-2)', border: '1px solid var(--line)' }}/>
                                 <button onClick={() => setCommentDrawer(post)} style={{
                                     flex: 1, height: 32, borderRadius: 12,
                                     background: 'var(--card-2)', border: '1px solid var(--line)',
@@ -521,7 +530,7 @@ export function SocialPage() {
             </div>
 
             {/* FAB */}
-            <div style={{ position: 'fixed', right: 18, bottom: 90, zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+            <div style={{ position: 'fixed', right: 18, bottom: 'calc(env(safe-area-inset-bottom, 0px) + 104px)', zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
                 {fabOpen && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14, background: 'var(--card)', border: '1px solid var(--line-2)', borderRadius: 18, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
                         <div>
@@ -562,12 +571,12 @@ export function SocialPage() {
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
                             {[1,2,3,4,5].map(s => (
-                                <button key={s} onMouseEnter={() => setHoverScore(s)} onMouseLeave={() => setHoverScore(0)} onClick={() => submitRating(s)} style={{
+                                <button key={s} onMouseEnter={() => setHoverScore(s)} onMouseLeave={() => setHoverScore(0)} onClick={() => { setSelectedScore(s); submitRating(s); }} onTouchEnd={() => { setSelectedScore(s); submitRating(s); }} style={{
                                     background: 'none', border: 0, padding: 6, cursor: 'pointer',
-                                    color: s <= hoverScore ? 'var(--accent)' : 'var(--fg-dim)',
-                                    transform: s <= hoverScore ? 'scale(1.15)' : 'scale(1)', transition: 'all 0.15s',
+                                    color: s <= (hoverScore || selectedScore) ? 'var(--accent)' : 'var(--fg-dim)',
+                                    transform: s <= (hoverScore || selectedScore) ? 'scale(1.15)' : 'scale(1)', transition: 'all 0.15s',
                                 }}>
-                                    <Star size={36} fill={s <= hoverScore ? 'var(--accent)' : 'none'}/>
+                                    <Star size={36} fill={s <= (hoverScore || selectedScore) ? 'var(--accent)' : 'none'}/>
                                 </button>
                             ))}
                         </div>
@@ -579,6 +588,12 @@ export function SocialPage() {
                 </div>
             )}
 
+            {toast && (
+                <div style={{ position:'fixed', top:'calc(env(safe-area-inset-top, 0px) + 96px)', left:'50%', transform:'translateX(-50%)', zIndex:1000, background:'var(--card)', border:'1px solid var(--energy)', borderRadius:14, padding:'12px 20px', display:'flex', alignItems:'center', gap:8, boxShadow:'0 8px 32px rgba(0,0,0,0.4)', whiteSpace:'nowrap' }}>
+                    <span style={{ fontSize:18 }}>✓</span>
+                    <span style={{ fontSize:13, fontWeight:700, color:'var(--energy)' }}>{toast}</span>
+                </div>
+            )}
             {shareSelector && <ShareSelectorModal type={shareSelector} onClose={() => setShareSelector(null)} onShared={() => fetchFeed(activeFilter)}/>}
             {commentDrawer && <CommentDrawer post={commentDrawer} onClose={() => setCommentDrawer(null)}/>}
             {previewPost && <ContentPreviewModal post={previewPost} onClose={() => setPreviewPost(null)} importing={importingId === previewPost.id} onImport={() => { const p = previewPost; setPreviewPost(null); handleImport(p); }}/>}

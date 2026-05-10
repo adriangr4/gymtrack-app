@@ -36,8 +36,9 @@ export function BottomNav() {
         <nav
             className={cn(
                 'fixed left-4 right-4 z-40 transition-all duration-300',
-                keyboardVisible ? '-bottom-24 opacity-0 pointer-events-none' : 'bottom-5 opacity-100',
+                keyboardVisible ? '-bottom-24 opacity-0 pointer-events-none' : 'opacity-100',
             )}
+            style={!keyboardVisible ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)' } : undefined}
         >
             <div
                 className="flex items-center justify-around h-16 rounded-[28px] border px-2"

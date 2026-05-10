@@ -85,11 +85,38 @@ export const shareToCommunity = async (payload: Omit<Post, 'id' | 'likes' | 'rat
     return { id: ref.id, likes: [], rating_sum: 0, rating_count: 0, comment_count: 0, ...payload };
 };
 
-export const toggleLike = async (postId: string, userId: string, currentLikes: string[]): Promise<{ success: boolean; likes: string[] }> => {
+export const toggleLike = async (
+    postId: string,
+    userId: string,
+    currentLikes: string[],
+    actorName?: string,
+    actorAvatar?: string,
+): Promise<{ success: boolean; likes: string[] }> => {
     const ref = doc(db, 'posts', postId);
     const hasLiked = currentLikes.includes(userId);
     await updateDoc(ref, { likes: hasLiked ? arrayRemove(userId) : arrayUnion(userId) });
     const newLikes = hasLiked ? currentLikes.filter(id => id !== userId) : [...currentLikes, userId];
+
+    if (!hasLiked && actorName) {
+        try {
+            const postSnap = await getDoc(ref);
+            const data: any = postSnap.data();
+            const recipient = data?.creator_id;
+            if (recipient && recipient !== userId) {
+                const { createNotification } = await import('./notifications');
+                await createNotification({
+                    recipient_id: recipient,
+                    actor_id: userId,
+                    actor_name: actorName,
+                    actor_avatar: actorAvatar,
+                    type: 'like',
+                    message: `${actorName} ha valorado tu publicación${data?.content_name ? ` "${data.content_name}"` : ''}`,
+                    related_id: postId,
+                });
+            }
+        } catch {}
+    }
+
     return { success: true, likes: newLikes };
 };
 
@@ -154,24 +181,52 @@ export const importContent = async (
 };
 
 export const getComments = async (postId: string): Promise<Comment[]> => {
-    const snap = await getDocs(query(
-        collection(db, 'comments'),
-        where('post_id', '==', postId),
-        orderBy('created_at', 'asc'),
-    ));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Comment));
+    try {
+        const snap = await getDocs(query(
+            collection(db, 'comments'),
+            where('post_id', '==', postId),
+            orderBy('created_at', 'asc'),
+        ));
+        return snap.docs.map(d => ({ id: d.id, ...d.data() } as Comment));
+    } catch {
+        // Fallback without orderBy if composite index doesn't exist
+        const snap = await getDocs(query(collection(db, 'comments'), where('post_id', '==', postId)));
+        return snap.docs
+            .map(d => ({ id: d.id, ...d.data() } as Comment))
+            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    }
 };
 
-export const addComment = async (postId: string, text: string, userId: string, username: string): Promise<Comment> => {
+export const addComment = async (postId: string, text: string, userId: string, username: string, actorAvatar?: string): Promise<Comment> => {
     const ref = await addDoc(collection(db, 'comments'), {
         post_id: postId,
         author_id: userId,
         author_name: username,
+        author_avatar: actorAvatar ?? '',
         text,
         created_at: new Date().toISOString(),
     });
     await updateDoc(doc(db, 'posts', postId), { comment_count: increment(1) });
-    return { id: ref.id, post_id: postId, author_id: userId, author_name: username, text, created_at: new Date().toISOString() };
+
+    try {
+        const postSnap = await getDoc(doc(db, 'posts', postId));
+        const data: any = postSnap.data();
+        const recipient = data?.creator_id;
+        if (recipient && recipient !== userId) {
+            const { createNotification } = await import('./notifications');
+            await createNotification({
+                recipient_id: recipient,
+                actor_id: userId,
+                actor_name: username,
+                actor_avatar: actorAvatar,
+                type: 'comment',
+                message: `${username} ha comentado tu publicación${data?.content_name ? ` "${data.content_name}"` : ''}: "${text.slice(0, 60)}"`,
+                related_id: postId,
+            });
+        }
+    } catch {}
+
+    return { id: ref.id, post_id: postId, author_id: userId, author_name: username, author_avatar: actorAvatar ?? '', text, created_at: new Date().toISOString() };
 };
 
 export const getPublicProfile = async (userId: string, currentUserId?: string): Promise<PublicUserProfile | null> => {

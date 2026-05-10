@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getDietImage, seedFrom } from '../../lib/imageUtils';
 import { getNutritionCache, setNutritionCache, getNutritionToday, logFood } from '../../services/nutrition';
 import { TEMPLATE_DIETS } from '../../data/dietTemplates';
+import { LevelQuizModal } from '../../components/quiz/LevelQuizModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Recipe {
@@ -272,6 +273,7 @@ export function DietPage() {
     const [activeDietMeals, setActiveDietMeals] = useState<any[]>([]);
     const [loggedHoy, setLoggedHoy] = useState<Set<string>>(new Set());
     const [showProGate, setShowProGate] = useState(false);
+    const [showQuiz, setShowQuiz] = useState(false);
     const isPro = user?.is_pro;
 
     const routines = getRoutinesCache() || [];
@@ -380,19 +382,28 @@ export function DietPage() {
             {/* Recipe modal */}
             {selectedRecipe && <RecipeModal recipe={selectedRecipe} onClose={() => setSelectedRecipe(null)} />}
 
+            {showQuiz && <LevelQuizModal type="diet" onClose={() => setShowQuiz(false)} />}
+
             {/* Header */}
-            <div style={{ padding: '14px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '14px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <div>
                     <div className="eyebrow">NUTRITION</div>
                     <div className="display" style={{ fontSize: 22, color: 'var(--fg)' }}>Dieta</div>
                 </div>
-                <Link to="/diet/create" style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    background: 'var(--accent)', color: 'var(--accent-ink)',
-                    borderRadius: 12, padding: '8px 14px', fontSize: 13, fontWeight: 700, textDecoration: 'none',
-                }}>
-                    <Plus size={14}/> Nuevo plan
-                </Link>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => setShowQuiz(true)} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        background: 'var(--card)', color: 'var(--fg)', border: '1px solid var(--line)',
+                        borderRadius: 12, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    }}>🎯 ¿Qué plan?</button>
+                    <Link to="/diet/create" style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        background: 'var(--accent)', color: 'var(--accent-ink)',
+                        borderRadius: 12, padding: '8px 14px', fontSize: 13, fontWeight: 700, textDecoration: 'none',
+                    }}>
+                        <Plus size={14}/> Nuevo
+                    </Link>
+                </div>
             </div>
 
             {/* Tabs */}

@@ -8,6 +8,7 @@ import { getNutritionCache, setNutritionCache, getNutritionToday } from '../../s
 import { useAuth } from '../../context/AuthContext';
 import { TopHeader } from '../../components/layout/TopHeader';
 import { getRoutineImage, seedFrom } from '../../lib/imageUtils';
+import { StreakFireOverlay } from '../../components/gamification/StreakFireOverlay';
 
 function Bar({ pct = 0.5, color = 'var(--accent)', h = 4 }: { pct?: number; color?: string; h?: number }) {
     return (
@@ -35,6 +36,11 @@ export function HomePage() {
     const [nutrition, setNutrition] = useState<any>(getNutritionCache());
     const [featuredRoutineId, setFeaturedRoutineId] = useState<string | null>(null);
     const [routines, setRoutines] = useState<any[]>(() => getRoutinesCache() || []);
+    const [pendingStreak, setPendingStreak] = useState<number>(() => {
+        const v = localStorage.getItem('lyfter_pending_streak');
+        if (v) { localStorage.removeItem('lyfter_pending_streak'); return Number(v); }
+        return 0;
+    });
 
     useEffect(() => {
         if (routines.length > 0 && !featuredRoutineId) {
@@ -74,6 +80,7 @@ export function HomePage() {
 
     return (
         <div className="w-full" style={{ background: 'var(--bg)', minHeight: '100dvh' }}>
+            {pendingStreak > 0 && <StreakFireOverlay days={pendingStreak} onClose={() => setPendingStreak(0)} />}
             <TopHeader />
 
             <main style={{ padding: '16px 16px 90px', display: 'flex', flexDirection: 'column', gap: 20 }}>

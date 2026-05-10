@@ -22,7 +22,21 @@ export function DietDetailsPage() {
     const [dietToDelete, setDietToDelete] = useState<string | null>(null);
     const [showPhotoPicker, setShowPhotoPicker] = useState(false);
     const [, forceRender] = useState(0);
-    const [loggedFoods, setLoggedFoods] = useState<Set<string>>(new Set());
+    const [toast, setToast] = useState<string | null>(null);
+    const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2400); };
+    // Persist logged foods per day using localStorage
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const loggedKey = `lyfter_logged_${id}_${todayStr}`;
+    const [loggedFoods, setLoggedFoodsState] = useState<Set<string>>(() => {
+        try { return new Set(JSON.parse(localStorage.getItem(loggedKey) ?? '[]')); } catch { return new Set(); }
+    });
+    const setLoggedFoods = (updater: (prev: Set<string>) => Set<string>) => {
+        setLoggedFoodsState(prev => {
+            const next = updater(prev);
+            localStorage.setItem(loggedKey, JSON.stringify([...next]));
+            return next;
+        });
+    };
     const [todayMacros, setTodayMacros] = useState(() => getNutritionCache() || { total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0 });
 
     const fullDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -47,7 +61,7 @@ export function DietDetailsPage() {
         if (!user?.id || !id) return;
         await setActiveDiet(user.id, id);
         if (updateUser) updateUser({ current_diet_id: id });
-        alert('¡Dieta seleccionada como principal!');
+        showToast('¡Dieta seleccionada como principal!');
     };
 
     const handleLogFood = async (food: any, mealName: string, key: string) => {
@@ -93,14 +107,34 @@ export function DietDetailsPage() {
         backdropFilter: 'blur(8px)',
     };
 
+    const planCalories = (() => {
+        if (!diet.weekly_plan?.length) return diet.daily_calories_target || 0;
+        let totalDays = 0, grandTotal = 0;
+        for (const day of diet.weekly_plan) {
+            let dayTotal = 0, hasFood = false;
+            for (const meal of (day.meals || [])) {
+                for (const food of (meal.foods || [])) { dayTotal += food.calories || 0; hasFood = true; }
+            }
+            if (hasFood) { totalDays++; grandTotal += dayTotal; }
+        }
+        return totalDays ? Math.round(grandTotal / totalDays) : (diet.daily_calories_target || 0);
+    })();
+
     const macros = diet.macros || {
-        protein: Math.round((diet.daily_calories_target || 2000) * 0.30 / 4),
-        carbs:   Math.round((diet.daily_calories_target || 2000) * 0.40 / 4),
-        fat:     Math.round((diet.daily_calories_target || 2000) * 0.30 / 9),
+        protein: Math.round((planCalories || 2000) * 0.30 / 4),
+        carbs:   Math.round((planCalories || 2000) * 0.40 / 4),
+        fat:     Math.round((planCalories || 2000) * 0.30 / 9),
     };
 
     return (
         <div style={{ background: 'var(--bg)', minHeight: '100dvh', paddingBottom: 90 }}>
+
+            {toast && (
+                <div style={{ position:'fixed', top:'calc(env(safe-area-inset-top, 0px) + 96px)', left:'50%', transform:'translateX(-50%)', zIndex:1000, background:'var(--card)', border:'1px solid var(--energy)', borderRadius:14, padding:'12px 20px', display:'flex', alignItems:'center', gap:8, boxShadow:'0 8px 32px rgba(0,0,0,0.4)', whiteSpace:'nowrap' }}>
+                    <span style={{ fontSize:16 }}>✓</span>
+                    <span style={{ fontSize:13, fontWeight:700, color:'var(--energy)' }}>{toast}</span>
+                </div>
+            )}
 
             {/* Photo picker */}
             {showPhotoPicker && (
@@ -110,7 +144,7 @@ export function DietDetailsPage() {
                             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>Elegir foto de portada</span>
                             <button onClick={() => setShowPhotoPicker(false)} style={{ background: 'none', border: 0, color: 'var(--fg-dim)', cursor: 'pointer', fontSize: 22 }}>×</button>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, overflowY: 'auto', maxHeight: '55vh' }}>
                             {PRESET_DIET_PHOTOS.map(p => (
                                 <button key={p.id} onClick={() => { setImageOverride(diet.id || diet.name, p.url.replace('300','800').replace('200','500')); setShowPhotoPicker(false); forceRender(n=>n+1); }}
                                     style={{ padding:0, border:'2px solid transparent', borderRadius:12, overflow:'hidden', cursor:'pointer', aspectRatio:'3/2',
@@ -147,13 +181,15 @@ export function DietDetailsPage() {
                     <button onClick={() => navigate(-1)} style={iconBtn}><ArrowLeft size={18}/></button>
                     <div style={{ flex: 1 }}/>
                     <button onClick={() => setShowPhotoPicker(true)} style={iconBtn}><Camera size={15}/></button>
-                    {isOwn && <>
+                    {isOwn && (
                         <button onClick={async () => {
                             await shareToCommunity({ content_type: 'diet', content_id: diet.id, content_name: diet.name, content_image: diet.image_url, creator_id: user!.id, creator_name: user!.username, creator_avatar: user!.profilePicture, created_at: new Date().toISOString() });
-                            alert('¡Compartida con la comunidad!');
+                            showToast('¡Compartida con la comunidad!');
                         }} style={iconBtn}><Share2 size={15}/></button>
+                    )}
+                    {(isOwn || user?.is_admin) && (
                         <button onClick={() => setDietToDelete(diet.id)} style={{ ...iconBtn, color: '#fca5a5' }}><Trash2 size={15}/></button>
-                    </>}
+                    )}
                 </div>
                 {/* Bottom overlay */}
                 <div style={{ position: 'absolute', bottom: 20, left: 20, right: 20, zIndex: 2 }}>
@@ -181,9 +217,9 @@ export function DietDetailsPage() {
                 {/* Macro quick stats */}
                 <div style={{ display: 'flex', gap: 0, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden', marginBottom: 20 }}>
                     {[
-                        { icon: <Flame size={18} color="var(--energy)"/>, value: diet.daily_calories_target || '—', label: 'kcal' },
+                        { icon: <Flame size={18} color="var(--energy)"/>, value: planCalories || diet.daily_calories_target || '—', label: 'kcal/día' },
                         { icon: <Clock size={18} color="var(--data)"/>, value: diet.prep_time || '15-30', label: 'min/receta' },
-                        { icon: <ChefHat size={18} color="var(--recovery)"/>, value: diet.difficulty || 'Fácil', label: 'nivel' },
+                        { icon: <ChefHat size={18} color="var(--recovery)"/>, value: diet.difficulty === 'easy' ? 'Fácil' : diet.difficulty === 'medium' ? 'Media' : diet.difficulty === 'hard' ? 'Difícil' : 'Fácil', label: 'nivel' },
                     ].map((s, i) => (
                         <div key={i} style={{ flex: 1, padding: '14px 10px', textAlign: 'center', borderRight: i < 2 ? '1px solid var(--line)' : 'none' }}>
                             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>{s.icon}</div>

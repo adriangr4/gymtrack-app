@@ -219,6 +219,8 @@ export function WorkoutSessionPage() {
                 if (dashStats.streak_days >= 1) {
                     setStreakDays(dashStats.streak_days);
                     setShowStreakFire(true);
+                    // Store streak for home page animation
+                    localStorage.setItem('lyfter_pending_streak', String(dashStats.streak_days));
                 }
             } catch {}
 
@@ -270,7 +272,25 @@ export function WorkoutSessionPage() {
         )
     }
 
-    if (sessionExercises.length === 0) return <div>No exercises for this day</div>;
+    if (sessionExercises.length === 0) {
+        return (
+            <div style={{ minHeight:'100dvh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24, background:'var(--bg)', color:'var(--fg)', textAlign:'center' }}>
+                <div style={{ fontSize:48, marginBottom:12 }}>💤</div>
+                <div style={{ fontSize:18, fontWeight:800, marginBottom:6 }}>Día de descanso</div>
+                <div style={{ fontSize:13, color:'var(--fg-mute)', marginBottom:20 }}>No hay ejercicios programados para este día.</div>
+                <button onClick={() => navigate(-1)} style={{ padding:'12px 22px', borderRadius:14, border:0, background:'var(--accent)', color:'var(--accent-ink)', fontSize:13, fontWeight:700, cursor:'pointer' }}>Volver</button>
+            </div>
+        );
+    }
+    if (isActive && !currentExercise) {
+        return (
+            <div style={{ minHeight:'100dvh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24, background:'var(--bg)', color:'var(--fg)', textAlign:'center' }}>
+                <div style={{ fontSize:18, fontWeight:800, marginBottom:6 }}>Sesión interrumpida</div>
+                <div style={{ fontSize:13, color:'var(--fg-mute)', marginBottom:20 }}>No se pudo cargar el ejercicio actual.</div>
+                <button onClick={() => navigate('/library')} style={{ padding:'12px 22px', borderRadius:14, border:0, background:'var(--accent)', color:'var(--accent-ink)', fontSize:13, fontWeight:700, cursor:'pointer' }}>Volver a la biblioteca</button>
+            </div>
+        );
+    }
 
     if (isFinished) {
         return (

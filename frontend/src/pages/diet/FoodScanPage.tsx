@@ -154,7 +154,7 @@ export function FoodScanPage() {
                     )}
                 </div>
 
-                <input ref={fileRef} id="food-file" type="file" accept="image/*" capture="environment"
+                <input ref={fileRef} id="food-file" type="file" accept="image/*"
                     style={{ display: 'none' }}
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
                 />

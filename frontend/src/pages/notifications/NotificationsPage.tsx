@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, UserPlus, Dumbbell, ChefHat, Heart } from 'lucide-react';
+import { ArrowLeft, Bell, UserPlus, Dumbbell, ChefHat, Heart, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getNotifications, markAllRead, timeAgo, type Notification } from '../../services/notifications';
 
@@ -10,6 +10,7 @@ function NotifIcon({ type }: { type: Notification['type'] }) {
     if (type === 'import_routine') return <Dumbbell size={s} />;
     if (type === 'import_diet')    return <ChefHat size={s} />;
     if (type === 'like')           return <Heart size={s} />;
+    if (type === 'comment')        return <MessageCircle size={s} />;
     return <Bell size={s} />;
 }
 
@@ -18,6 +19,7 @@ function notifColor(type: Notification['type']): string {
     if (type === 'import_routine') return 'var(--energy)';
     if (type === 'import_diet')    return 'var(--recovery)';
     if (type === 'like')           return '#f43f5e';
+    if (type === 'comment')        return 'var(--data)';
     return 'var(--fg-dim)';
 }
 

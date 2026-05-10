@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getRoutines, deleteRoutine, type Routine } from '../../services/routines';
+import { LevelQuizModal } from '../../components/quiz/LevelQuizModal';
 import { useAuth } from '../../context/AuthContext';
 import { shareToCommunity } from '../../services/social';
-import { Plus, ChevronLeft, Share2, Pencil, Star, Play, Search, Trash2, Camera } from 'lucide-react';
+import { Plus, ChevronLeft, Share2, Star, Play, Search, Trash2, Camera } from 'lucide-react';
 import { getRoutineImage, seedFrom, getImageOverride, setImageOverride, PRESET_ROUTINE_PHOTOS } from '../../lib/imageUtils';
 
 function Bar({ pct = 0.5, h = 6 }: { pct?: number; h?: number }) {
@@ -29,6 +30,7 @@ export function LibraryPage() {
     const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [showPhotoPicker, setShowPhotoPicker] = useState(false);
+    const [showQuiz, setShowQuiz] = useState(false);
     const [, forceRender] = useState(0);
     const { user, updateUser } = useAuth();
 
@@ -104,7 +106,7 @@ export function LibraryPage() {
     if (selected) {
         const isCurrent = user?.current_routine_id === selected.id;
         const isPredefined = selected.creator_id === 'system' || selected.is_predefined;
-        const isOwner = !isPredefined && selected.creator_id === user?.id;
+        const isOwner = (!isPredefined && selected.creator_id === user?.id) || !!user?.is_admin;
         const grouped = (selected.exercises || []).reduce((acc: any, ex: any) => {
             const d = ex.day_of_week ?? 1;
             if (!acc[d]) acc[d] = [];
@@ -121,7 +123,7 @@ export function LibraryPage() {
                         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>Choose cover photo</span>
                         <button onClick={() => setShowPhotoPicker(false)} style={{ background: 'none', border: 0, color: 'var(--fg-dim)', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>×</button>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, overflowY: 'auto', maxHeight: '55vh' }}>
                         {PRESET_ROUTINE_PHOTOS.map(p => (
                             <button key={p.id} onClick={() => { setImageOverride(selected.id!, p.url.replace('300', '800').replace('200', '560')); setShowPhotoPicker(false); forceRender(n => n + 1); }} style={{
                                 padding: 0, border: '2px solid transparent', borderRadius: 12, overflow: 'hidden',
@@ -158,7 +160,6 @@ export function LibraryPage() {
                     <button onClick={() => handleSetActive(selected.id!)} style={{ ...iconBtn, ...(isCurrent ? { background: 'var(--accent)', color: 'var(--accent-ink)', borderColor: 'transparent' } : {}) }}>
                         <Star size={15} fill={isCurrent ? 'currentColor' : 'none'}/>
                     </button>
-                    <button style={iconBtn}><Pencil size={15}/></button>
                 </div>
 
                 {/* Hero */}
@@ -282,8 +283,8 @@ export function LibraryPage() {
                     ))}
                 </div>
 
-                {/* Start CTA */}
-                <div style={{ position: 'fixed', left: 14, right: 14, bottom: 18, zIndex: 50 }}>
+                {/* Start CTA — above bottom nav */}
+                <div style={{ position: 'fixed', left: 14, right: 14, bottom: 'calc(env(safe-area-inset-bottom, 0px) + 104px)', zIndex: 50 }}>
                     <Link to={`/workout/${selected.id}`} style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                         width: '100%', height: 56, borderRadius: 18, border: 0,
@@ -303,13 +304,19 @@ export function LibraryPage() {
     return (
         <div style={{ background: 'var(--bg)', paddingBottom: 90 }}>
             {DeleteModal}
+            {showQuiz && <LevelQuizModal type="routine" onClose={() => setShowQuiz(false)} />}
 
             {/* Header */}
-            <div style={{ padding: '12px 20px 0', display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+            <div style={{ padding: '12px 20px 0', display: 'flex', alignItems: 'flex-end', gap: 8 }}>
                 <div style={{ flex: 1 }}>
                     <div className="eyebrow" style={{ marginBottom: 1 }}>LIBRARY</div>
                     <div className="display" style={{ fontSize: 24, color: 'var(--fg)' }}>Routines</div>
                 </div>
+                <button onClick={() => setShowQuiz(true)} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    background: 'var(--card)', color: 'var(--fg)', border: '1px solid var(--line)',
+                    padding: '8px 12px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                }}>🎯 ¿Cuál?</button>
                 <Link to="/workout/create" style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
                     background: 'var(--accent)', color: 'var(--accent-ink)',
@@ -400,8 +407,8 @@ export function LibraryPage() {
                                         )}
                                     </div>
                                 </div>
-                                <div style={{ padding: '10px 12px' }}>
-                                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2, color: 'var(--fg)' }}>{routine.name}</div>
+                                <div style={{ padding: '10px 12px', minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{routine.name}</div>
                                     {routine.difficulty && (
                                         <div style={{ fontSize: 10, color: 'var(--fg-dim)', marginTop: 2, textTransform: 'capitalize' }}>{routine.difficulty}</div>
                                     )}
