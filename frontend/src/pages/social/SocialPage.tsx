@@ -42,16 +42,16 @@ function CommentDrawer({ post, onClose }: { post: Post; onClose: () => void }) {
     };
 
     const sheet: React.CSSProperties = {
-        position: 'fixed', inset: 0, zIndex: 100,
+        position: 'fixed', inset: 0, zIndex: 200,
         background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        paddingBottom: 88,
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)',
     };
     const panel: React.CSSProperties = {
         width: '100%', maxWidth: 480,
         background: 'var(--card)', border: '1px solid var(--line-2)',
-        borderRadius: 24,
-        display: 'flex', flexDirection: 'column', maxHeight: 'calc(80dvh - 88px)',
+        borderRadius: 24, overflow: 'hidden',
+        display: 'flex', flexDirection: 'column', maxHeight: 'calc(75dvh - 88px)',
     };
 
     return (
@@ -135,8 +135,8 @@ function ShareSelectorModal({ type, onClose, onShared }: { type: 'routine' | 'di
         finally { setSharingId(null); }
     };
 
-    const sheet: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' };
-    const panel: React.CSSProperties = { width: '100%', maxWidth: 480, background: 'var(--card)', border: '1px solid var(--line-2)', borderRadius: '24px 24px 0 0', display: 'flex', flexDirection: 'column', maxHeight: '80dvh' };
+    const sheet: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)' };
+    const panel: React.CSSProperties = { width: '100%', maxWidth: 480, background: 'var(--card)', border: '1px solid var(--line-2)', borderRadius: 24, display: 'flex', flexDirection: 'column', maxHeight: 'calc(75dvh - 88px)', overflow: 'hidden' };
 
     return (
         <div style={sheet}>
@@ -190,8 +190,8 @@ function ContentPreviewModal({ post, onClose, onImport, importing }: { post: Pos
     const byDay: Record<number, any[]> = {};
     if (preview?.exercises) for (const ex of preview.exercises) { const d = ex.day_of_week ?? 1; (byDay[d] = byDay[d] || []).push(ex); }
 
-    const sheet: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 88 };
-    const panel: React.CSSProperties = { width: '100%', maxWidth: 480, background: 'var(--card)', border: '1px solid var(--line-2)', borderRadius: 24, display: 'flex', flexDirection: 'column', maxHeight: 'calc(85dvh - 88px)' };
+    const sheet: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)' };
+    const panel: React.CSSProperties = { width: '100%', maxWidth: 480, background: 'var(--card)', border: '1px solid var(--line-2)', borderRadius: 24, display: 'flex', flexDirection: 'column', maxHeight: 'calc(82dvh - 88px)', overflow: 'hidden' };
 
     return (
         <div style={sheet} onClick={onClose}>
