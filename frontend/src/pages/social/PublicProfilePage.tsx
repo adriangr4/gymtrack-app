@@ -37,15 +37,10 @@ export function PublicProfilePage() {
         finally { setImporting(false); }
     };
 
-    useEffect(() => {
-        if (userId && currentUser?.id && userId === currentUser.id) {
-            navigate('/profile', { replace: true });
-            return;
-        }
-    }, [userId, currentUser?.id]);
+    const isOwnProfile = !!userId && !!currentUser?.id && userId === currentUser.id;
 
     useEffect(() => {
-        if (!userId || (currentUser?.id && userId === currentUser.id)) return;
+        if (!userId) return;
         setLoading(true);
         getPublicProfile(userId, currentUser?.id)
             .then(p => setProfile(p))
@@ -128,24 +123,25 @@ export function PublicProfilePage() {
                             </div>
                         </div>
 
-                        {}
-                        <button
-                            onClick={handleFollow}
-                            disabled={followLoading}
-                            className={cn(
-                                'flex items-center gap-2 px-5 py-2 rounded-full font-bold text-sm transition-all active:scale-95 disabled:opacity-60',
-                                profile.is_following
-                                    ? 'bg-muted text-muted-foreground border border-border hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30'
-                                    : 'bg-primary text-white shadow-md shadow-primary/30 hover:bg-primary/90'
-                            )}
-                        >
-                            {followLoading
-                                ? <Loader2 className="size-4 animate-spin" />
-                                : profile.is_following
-                                    ? <><UserCheck className="size-4" /> Siguiendo</>
-                                    : <><UserPlus className="size-4" /> Seguir</>
-                            }
-                        </button>
+                        {!isOwnProfile && (
+                            <button
+                                onClick={handleFollow}
+                                disabled={followLoading}
+                                className={cn(
+                                    'flex items-center gap-2 px-5 py-2 rounded-full font-bold text-sm transition-all active:scale-95 disabled:opacity-60',
+                                    profile.is_following
+                                        ? 'bg-muted text-muted-foreground border border-border hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30'
+                                        : 'bg-primary text-white shadow-md shadow-primary/30 hover:bg-primary/90'
+                                )}
+                            >
+                                {followLoading
+                                    ? <Loader2 className="size-4 animate-spin" />
+                                    : profile.is_following
+                                        ? <><UserCheck className="size-4" /> Siguiendo</>
+                                        : <><UserPlus className="size-4" /> Seguir</>
+                                }
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -250,10 +246,12 @@ export function PublicProfilePage() {
                             </div>
                         </div>
                         <div style={{ padding:16 }}>
-                            <button onClick={() => handleImport(selectedPost)} disabled={importing} style={{ width:'100%', padding:'14px', borderRadius:16, border:0, background:'var(--accent)', color:'var(--accent-ink)', fontSize:14, fontWeight:700, cursor:importing?'not-allowed':'pointer', opacity:importing?0.6:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-                                <Bookmark size={16}/>
-                                {importing ? 'Importando…' : `Importar ${selectedPost.content_type === 'routine' ? 'rutina' : 'dieta'}`}
-                            </button>
+                            {!isOwnProfile && (
+                                <button onClick={() => handleImport(selectedPost)} disabled={importing} style={{ width:'100%', padding:'14px', borderRadius:16, border:0, background:'var(--accent)', color:'var(--accent-ink)', fontSize:14, fontWeight:700, cursor:importing?'not-allowed':'pointer', opacity:importing?0.6:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                                    <Bookmark size={16}/>
+                                    {importing ? 'Importando…' : `Importar ${selectedPost.content_type === 'routine' ? 'rutina' : 'dieta'}`}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

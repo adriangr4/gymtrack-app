@@ -16,10 +16,20 @@ export function WeightGraph({ data }: WeightGraphProps) {
         return [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [data]);
 
-    if (sortedData.length < 2) {
+    if (sortedData.length === 0) {
         return (
             <div className="h-48 flex items-center justify-center text-muted-foreground text-sm bg-muted/20 rounded-xl">
-                Registra al menos 2 pesos para ver la gráfica
+                Aún no has registrado ningún peso
+            </div>
+        );
+    }
+
+    if (sortedData.length === 1) {
+        return (
+            <div className="h-48 flex flex-col items-center justify-center bg-muted/20 rounded-xl gap-2">
+                <span style={{ fontSize: 40, fontWeight: 800, color: 'var(--accent)' }}>{sortedData[0].weight} kg</span>
+                <span className="text-xs text-muted-foreground">Primer registro · {new Date(sortedData[0].date).toLocaleDateString('es-ES')}</span>
+                <span className="text-xs text-muted-foreground mt-1">Registra otro peso para ver la gráfica</span>
             </div>
         );
     }
@@ -27,12 +37,12 @@ export function WeightGraph({ data }: WeightGraphProps) {
     const weights = sortedData.map(d => d.weight);
     const minWeight = Math.min(...weights) - 1;
     const maxWeight = Math.max(...weights) + 1;
-    const range = maxWeight - minWeight;
+    const range = maxWeight - minWeight || 1;
 
     const getX = (index: number) => (index / (sortedData.length - 1)) * 100;
     const getY = (weight: number) => 100 - ((weight - minWeight) / range) * 100;
 
-    const points = sortedData.map((d, i) => `${getX(i)},${getY(d.weight)}`).join(' ');
+    const pathD = sortedData.map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(d.weight)}`).join(' ');
 
     return (
         <div className="w-full h-48 relative">
@@ -44,7 +54,7 @@ export function WeightGraph({ data }: WeightGraphProps) {
 
                 {}
                 <motion.path
-                    d={`M ${points}`}
+                    d={pathD}
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
@@ -62,7 +72,7 @@ export function WeightGraph({ data }: WeightGraphProps) {
                     </linearGradient>
                 </defs>
                 <motion.path
-                    d={`M ${points} L 100,100 L 0,100 Z`}
+                    d={`${pathD} L 100,100 L 0,100 Z`}
                     fill="url(#gradientArea)"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

@@ -121,12 +121,22 @@ export const logWeight = async (userId: string, weight: number): Promise<void> =
 };
 
 export const getWeightHistory = async (userId: string): Promise<any[]> => {
-    const snap = await getDocs(query(
-        collection(db, 'weight_logs'),
-        where('user_id', '==', userId),
-        orderBy('date', 'asc'),
-    ));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    try {
+        const snap = await getDocs(query(
+            collection(db, 'weight_logs'),
+            where('user_id', '==', userId),
+            orderBy('date', 'asc'),
+        ));
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch {
+        const snap = await getDocs(query(
+            collection(db, 'weight_logs'),
+            where('user_id', '==', userId),
+        ));
+        return snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }
 };
 
 export const setActiveDiet = async (userId: string, dietId: string): Promise<void> => {
