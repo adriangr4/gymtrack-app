@@ -112,31 +112,44 @@ export const getDashboardStats = async (userId: string): Promise<DashboardStats>
 
 export const logWeight = async (userId: string, weight: number): Promise<void> => {
     const today = new Date().toISOString().slice(0, 10);
-    await addDoc(collection(db, 'weight_logs'), {
-        user_id: userId,
-        weight,
-        date: today,
-    });
+    const existing = await getDocs(query(
+        collection(db, 'weight_logs'),
+        where('user_id', '==', userId),
+        where('date', '==', today),
+    ));
+    if (!existing.empty) {
+        await updateDoc(doc(db, 'weight_logs', existing.docs[0].id), { weight, logged_at: new Date().toISOString() });
+    } else {
+        await addDoc(collection(db, 'weight_logs'), {
+            user_id: userId,
+            weight,
+            date: today,
+            logged_at: new Date().toISOString(),
+        });
+    }
     await updateDoc(doc(db, 'users', userId), { current_weight: weight });
 };
 
 export const getWeightHistory = async (userId: string): Promise<any[]> => {
+    let rows: any[] = [];
     try {
         const snap = await getDocs(query(
             collection(db, 'weight_logs'),
             where('user_id', '==', userId),
             orderBy('date', 'asc'),
         ));
-        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch {
-        const snap = await getDocs(query(
-            collection(db, 'weight_logs'),
-            where('user_id', '==', userId),
-        ));
-        return snap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const snap = await getDocs(query(collection(db, 'weight_logs'), where('user_id', '==', userId)));
+        rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
+    // deduplicate by date — keep last entry per day, then sort chronologically
+    const byDate = new Map<string, any>();
+    for (const r of rows) {
+        const prev = byDate.get(r.date);
+        if (!prev || (r.logged_at && r.logged_at > (prev.logged_at ?? ''))) byDate.set(r.date, r);
+    }
+    return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 };
 
 export const setActiveDiet = async (userId: string, dietId: string): Promise<void> => {
